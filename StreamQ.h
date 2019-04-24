@@ -1,6 +1,5 @@
 #pragma once
 
-
 class StreamQ {
 public:
 	enum eBuffer {

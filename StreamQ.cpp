@@ -199,40 +199,61 @@ BOOL StreamQ::Dequeue(char * chpDest, int iSize)
 	}
 }
 
-int StreamQ::Peek(char * chpDest, int iSize)
+BOOL StreamQ::Peek(char * chpDest, int iSize)
 {
-	int getSize = GetNotBrokenGetSize();
-	char* pFront = &m_pBuffer[(m_front + 1) % m_bufferSize];
-	int tmpFront = m_front;
+	int front = m_front;
+	int rear = m_rear;
+	int bufferSize = m_bufferSize;
+	int getSize;
 
-	if (getSize > iSize) {
+	if (rear > front) {
+		getSize = rear - front - 1;
+	}
+	else {
+		if (front + 1 == bufferSize) {
+			getSize = rear;
+		}
+		else {
+			getSize = bufferSize - ((front + 1) % bufferSize);
+		}
+	}
+
+
+	char* pFront = &m_pBuffer[(front + 1) % bufferSize];
+
+	if (getSize >= iSize) {
 		memcpy_s(chpDest, iSize, pFront, iSize);
 
-		return iSize;
+		return TRUE;
 	}
 	else {
 		memcpy_s(chpDest, getSize, pFront, getSize);
-		MoveFront(getSize);
+
+		int tmpFront = (front + getSize) % bufferSize;
 
 		int dataSize = iSize - getSize;
 
-		pFront = &m_pBuffer[(m_front + 1) % m_bufferSize];
+		pFront = &m_pBuffer[(tmpFront + 1) % bufferSize];
 
-		getSize = GetNotBrokenGetSize();
-
-		if (getSize > dataSize) {
-			memcpy_s(&chpDest[iSize - dataSize], dataSize, pFront, dataSize);
-			MoveFront(dataSize);
-			m_front = tmpFront;
-
-			return iSize;
+		if (rear > tmpFront) {
+			getSize = rear - tmpFront - 1;
 		}
 		else {
-			memcpy_s(&chpDest[iSize - dataSize], getSize, pFront, getSize);
-			MoveFront(getSize);
-			m_front = tmpFront;
+			if (tmpFront + 1 == bufferSize) {
+				getSize = rear;
+			}
+			else {
+				getSize = bufferSize - ((tmpFront + 1) % bufferSize);
+			}
+		}
 
-			return iSize - dataSize + getSize;
+		if (getSize >= dataSize) {
+			memcpy_s(&chpDest[iSize - dataSize], dataSize, pFront, dataSize);
+
+			return TRUE;
+		}
+		else {
+			return FALSE;
 		}
 	}
 }
