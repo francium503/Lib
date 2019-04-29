@@ -8,6 +8,8 @@ NetLib::HTTP::HTTP()
 	this->connectTimeOut = 10000;
 	this->requestTimeOut = 10000;
 	this->responseTimeOut = 10000;
+	
+	this->stringLength = 256;
 
 	WSADATA wsa;
 
@@ -18,6 +20,8 @@ NetLib::HTTP::HTTP(int connectTimeOut, int requestTimeOut, int responseTimeOut) 
 	this->connectTimeOut = connectTimeOut;
 	this->requestTimeOut = requestTimeOut;
 	this->responseTimeOut = responseTimeOut;
+
+	this->stringLength = 256;
 
 	WSADATA wsa;
 	
@@ -33,6 +37,7 @@ NetLib::HTTP::~HTTP()
 void NetLib::HTTP::SetURI(char * szURI, int URILength)
 {
 	URI = new char[URILength];
+	this->URILength = URILength;
 
 	strcpy_s(URI, URILength, szURI);
 }
@@ -43,9 +48,9 @@ int NetLib::HTTP::Request(const char * buffer, int bufferSize, char * response, 
 	fd_set writeSet, exceptionSet;
 	timeval tV;
 	int retval;
-	char* host = new char[256];
+	char* host = new char[stringLength];
 	short port;
-	char* file = new char[256];
+	char* file = new char[stringLength];
 
 	retval = URIParse(URI, host, &port, file);
 
@@ -158,7 +163,8 @@ int NetLib::HTTP::Request(const char * buffer, int bufferSize, char * response, 
 			protocol += "\r\n";
 			protocol += "Content-Type: application/x-www-form-urlencoded\r\n";
 			protocol += "Content-Length: ";
-			protocol += _itoa(bufferSize - 1, sizeTmp, 10);
+			//protocol += _itoa(bufferSize - 1, sizeTmp, 10);
+			protocol += _itoa_s(bufferSize - 1, sizeTmp, 256, 10);
 			protocol += "\r\nConnection: Close\r\n\r\n";
 			protocol.append(buffer);
 
@@ -272,16 +278,16 @@ int NetLib::HTTP::URIParse(char * URI, char * host, short * port, char * file)
 			else {
 				*tmp = '\0';
 
-				strcpy(host, URI);
+				strcpy_s(host, stringLength, URI);
 				*tmp = '/';
 
-				strcpy(file, tmp + 1);
+				strcpy_s(file, stringLength, tmp + 1);
 			}
 		}
 		else {
 			*tmp = '\0';
 
-			strcpy(host, URI);
+			strcpy_s(host, stringLength, URI);
 			*tmp = ':';
 
 			tmp += 1;
@@ -297,7 +303,7 @@ int NetLib::HTTP::URIParse(char * URI, char * host, short * port, char * file)
 
 				*tmp2 = '/';
 
-				strcpy(file, tmp2 + 1);
+				strcpy_s(file, stringLength, tmp2 + 1);
 			}
 		}
 	}
@@ -314,17 +320,17 @@ int NetLib::HTTP::URIParse(char * URI, char * host, short * port, char * file)
 			else {
 				*tmp2 = '\0';
 
-				strcpy(host, tmp);
+				strcpy_s(host, stringLength, tmp);
 				*tmp2 = '/';
 				tmp2 += 1;
 
-				strcpy(file, tmp2);
+				strcpy_s(file, stringLength, tmp2);
 			}
 		}
 		else {
 			*tmp2 = '\0';
 
-			strcpy(host, tmp);
+			strcpy_s(host, stringLength, tmp);
 			*tmp2 = ':';
 			tmp2 += 1;
 
@@ -340,7 +346,7 @@ int NetLib::HTTP::URIParse(char * URI, char * host, short * port, char * file)
 
 				*tmp3 = '/';
 
-				strcpy(file, tmp3 + 1);
+				strcpy_s(file, stringLength, tmp3 + 1);
 			}
 		}
 	}

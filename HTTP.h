@@ -16,6 +16,8 @@ namespace NetLib {
 	private:
 		SOCKET sock;
 		char* URI;
+		int URILength;
+		int stringLength;
 
 		int connectTimeOut;
 		int requestTimeOut;
