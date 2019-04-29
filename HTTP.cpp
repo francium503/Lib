@@ -2,7 +2,8 @@
 #include "HTTP.h"
 
 
-HTTP::HTTP()
+
+NetLib::HTTP::HTTP()
 {
 	this->connectTimeOut = 10000;
 	this->requestTimeOut = 10000;
@@ -13,7 +14,7 @@ HTTP::HTTP()
 	WSAStartup(MAKEWORD(2, 2), &wsa);
 }
 
-HTTP::HTTP(int connectTimeOut, int requestTimeOut, int responseTimeOut) {
+NetLib::HTTP::HTTP(int connectTimeOut, int requestTimeOut, int responseTimeOut) {
 	this->connectTimeOut = connectTimeOut;
 	this->requestTimeOut = requestTimeOut;
 	this->responseTimeOut = responseTimeOut;
@@ -24,19 +25,19 @@ HTTP::HTTP(int connectTimeOut, int requestTimeOut, int responseTimeOut) {
 }
 
 
-HTTP::~HTTP()
+NetLib::HTTP::~HTTP()
 {
 	delete[] URI;
 }
 
-void HTTP::SetURI(char * szURI, int URILength)
+void NetLib::HTTP::SetURI(char * szURI, int URILength)
 {
 	URI = new char[URILength];
 
 	strcpy_s(URI, URILength, szURI);
 }
 
-int HTTP::Request(const char * buffer, int bufferSize, char * response, int * responseSize)
+int NetLib::HTTP::Request(const char * buffer, int bufferSize, char * response, int * responseSize)
 {
 	int responseCode = 0;
 	fd_set writeSet, exceptionSet;
@@ -251,7 +252,7 @@ int HTTP::Request(const char * buffer, int bufferSize, char * response, int * re
 	return responseCode;
 }
 
-int HTTP::URIParse(char * URI, char * host, short * port, char * file)
+int NetLib::HTTP::URIParse(char * URI, char * host, short * port, char * file)
 {
 	char* tmp = nullptr;
 	char* tmp2 = nullptr;

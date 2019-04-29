@@ -2,7 +2,7 @@
 #include "PacketBuffer.h"
 
 
-PacketBuffer::PacketBuffer()
+NetLib::PacketBuffer::PacketBuffer()
 {
 	m_chpBuffer = new char[eBuffer_DEFAULT];
 	m_iBufferSize = eBuffer_DEFAULT;
@@ -11,7 +11,7 @@ PacketBuffer::PacketBuffer()
 	m_iWritePos = 0;
 }
 
-PacketBuffer::PacketBuffer(int iBuffSize)
+NetLib::PacketBuffer::PacketBuffer(int iBuffSize)
 {
 	m_chpBuffer = new char[iBuffSize];
 	m_iBufferSize = iBuffSize;
@@ -21,39 +21,39 @@ PacketBuffer::PacketBuffer(int iBuffSize)
 }
 
 
-PacketBuffer::~PacketBuffer()
+NetLib::PacketBuffer::~PacketBuffer()
 {
 	delete[] m_chpBuffer;
 }
 
-void PacketBuffer::Release(void)
+void NetLib::PacketBuffer::Release(void)
 {
 	delete[] m_chpBuffer;
 }
 
-void PacketBuffer::Clear(void)
+void NetLib::PacketBuffer::Clear(void)
 {
 	m_iReadPos = 0;
 	m_iWritePos = 0;
 	m_iDataSize = 0;
 }
 
-inline int PacketBuffer::GetBufferSize(void)
+inline int NetLib::PacketBuffer::GetBufferSize(void)
 {
 	return m_iBufferSize;
 }
 
-inline int PacketBuffer::GetDataSize(void)
+inline int NetLib::PacketBuffer::GetDataSize(void)
 {
 	return m_iDataSize;
 }
 
-inline char * PacketBuffer::GetBufferPtr(void)
+inline char * NetLib::PacketBuffer::GetBufferPtr(void)
 {
 	return m_chpBuffer;
 }
 
-int PacketBuffer::MoveWritePos(unsigned int iPos)
+int NetLib::PacketBuffer::MoveWritePos(unsigned int iPos)
 {
 	if (m_iWritePos + iPos >= m_iBufferSize) {
 		int tmp = m_iBufferSize - m_iWritePos - 1;
@@ -66,7 +66,7 @@ int PacketBuffer::MoveWritePos(unsigned int iPos)
 	}
 }
 
-int PacketBuffer::MoveReadPos(unsigned int iPos)
+int NetLib::PacketBuffer::MoveReadPos(unsigned int iPos)
 {
 	if (m_iReadPos + iPos >= m_iBufferSize) {
 		int tmp = m_iBufferSize - m_iReadPos - 1;
@@ -79,7 +79,7 @@ int PacketBuffer::MoveReadPos(unsigned int iPos)
 	}
 }
 
-PacketBuffer & PacketBuffer::operator=(PacketBuffer & rhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator=(PacketBuffer & rhs)
 {
 	this->m_iBufferSize = rhs.m_iBufferSize;
 	this->m_iDataSize = rhs.m_iDataSize;
@@ -95,7 +95,7 @@ PacketBuffer & PacketBuffer::operator=(PacketBuffer & rhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator<<(BYTE brhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(BYTE brhs)
 {
 	int size = sizeof(BYTE);
 	if (m_iWritePos + size >= m_iBufferSize)
@@ -107,7 +107,7 @@ PacketBuffer & PacketBuffer::operator<<(BYTE brhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator<<(char chrhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(char chrhs)
 {
 	int size = sizeof(char);
 	if (m_iWritePos + size >= m_iBufferSize)
@@ -119,7 +119,7 @@ PacketBuffer & PacketBuffer::operator<<(char chrhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator<<(short shrhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(short shrhs)
 {
 	int size = sizeof(short);
 	if (m_iWritePos + size >= m_iBufferSize)
@@ -130,7 +130,7 @@ PacketBuffer & PacketBuffer::operator<<(short shrhs)
 
 	return *this;
 }
-PacketBuffer & PacketBuffer::operator<<(int irhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(int irhs)
 {
 	int size = sizeof(int);
 	if (m_iWritePos + size >= m_iBufferSize)
@@ -142,7 +142,7 @@ PacketBuffer & PacketBuffer::operator<<(int irhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator<<(float frhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(float frhs)
 {
 	int size = sizeof(float);
 	if (m_iWritePos + size >= m_iBufferSize)
@@ -154,7 +154,7 @@ PacketBuffer & PacketBuffer::operator<<(float frhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator<<(double drhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(double drhs)
 {
 	int size = sizeof(double);
 	if (m_iWritePos + size >= m_iBufferSize)
@@ -166,7 +166,7 @@ PacketBuffer & PacketBuffer::operator<<(double drhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator<<(__int64 i64rhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(__int64 i64rhs)
 {
 	int size = sizeof(__int64);
 	if (m_iWritePos + size >= m_iBufferSize)
@@ -178,7 +178,7 @@ PacketBuffer & PacketBuffer::operator<<(__int64 i64rhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator>>(BYTE & brhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(BYTE & brhs)
 {
 	int size = sizeof(BYTE);
 	if (m_iReadPos + size > m_iWritePos)
@@ -190,7 +190,7 @@ PacketBuffer & PacketBuffer::operator>>(BYTE & brhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator>>(char & chrhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(char & chrhs)
 {
 	int size = sizeof(char);
 	if (m_iReadPos + size > m_iWritePos)
@@ -202,7 +202,7 @@ PacketBuffer & PacketBuffer::operator>>(char & chrhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator>>(short & shrhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(short & shrhs)
 {
 	int size = sizeof(short);
 	if (m_iReadPos + size > m_iWritePos)
@@ -214,7 +214,7 @@ PacketBuffer & PacketBuffer::operator>>(short & shrhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator>>(int & irhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(int & irhs)
 {
 	int size = sizeof(int);
 	if (m_iReadPos + size > m_iWritePos)
@@ -226,7 +226,7 @@ PacketBuffer & PacketBuffer::operator>>(int & irhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator>>(float & frhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(float & frhs)
 {
 	int size = sizeof(float);
 	if (m_iReadPos + size > m_iWritePos)
@@ -238,7 +238,7 @@ PacketBuffer & PacketBuffer::operator>>(float & frhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator>>(double & drhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(double & drhs)
 {
 	int size = sizeof(double);
 	if (m_iReadPos + size > m_iWritePos)
@@ -250,7 +250,7 @@ PacketBuffer & PacketBuffer::operator>>(double & drhs)
 	return *this;
 }
 
-PacketBuffer & PacketBuffer::operator>>(__int64 & i64rhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(__int64 & i64rhs)
 {
 	int size = sizeof(__int64);
 	if (m_iReadPos + size > m_iWritePos)
@@ -263,7 +263,7 @@ PacketBuffer & PacketBuffer::operator>>(__int64 & i64rhs)
 }
 
 
-int PacketBuffer::GetData(char * chpDest, int iGetSize)
+int NetLib::PacketBuffer::GetData(char * chpDest, int iGetSize)
 {
 	if (m_iReadPos + iGetSize > m_iWritePos)
 		return -1;
@@ -273,7 +273,7 @@ int PacketBuffer::GetData(char * chpDest, int iGetSize)
 	return iGetSize;
 }
 
-int PacketBuffer::PutData(char * chpSrc, int iPutSize)
+int NetLib::PacketBuffer::PutData(char * chpSrc, int iPutSize)
 {
 	if (m_iWritePos + iPutSize >= m_iBufferSize)
 		return -1;

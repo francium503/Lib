@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "StreamQ.h"
 
-StreamQ::StreamQ(void)
+NetLib::StreamQ::StreamQ(void)
 {
 	m_pBuffer = new char[eBuffer_DEFAULT];
 	m_front = 0;
@@ -11,7 +11,7 @@ StreamQ::StreamQ(void)
 	InitializeCriticalSection(&m_streamQCS);
 }
 
-StreamQ::StreamQ(int iBufferSize)
+NetLib::StreamQ::StreamQ(int iBufferSize)
 {
 	m_pBuffer = new char[iBufferSize];
 	m_front = 0;
@@ -21,14 +21,14 @@ StreamQ::StreamQ(int iBufferSize)
 	InitializeCriticalSection(&m_streamQCS);
 }
 
-StreamQ::~StreamQ()
+NetLib::StreamQ::~StreamQ()
 {
 	delete[] m_pBuffer;
 
 	DeleteCriticalSection(&m_streamQCS);
 }
 
-void StreamQ::ReSize(int iSize)
+void NetLib::StreamQ::ReSize(int iSize)
 {
 	delete[] m_pBuffer;
 
@@ -39,12 +39,12 @@ void StreamQ::ReSize(int iSize)
 	m_bufferSize = iSize;
 }
 
-int StreamQ::GetBufferSize(void)
+int NetLib::StreamQ::GetBufferSize(void)
 {
 	return m_bufferSize;
 }
 
-int StreamQ::GetUseSize(void)
+int NetLib::StreamQ::GetUseSize(void)
 {
 	if (m_rear < m_front) {
 		return (m_rear)+(m_bufferSize - (m_front + 1));
@@ -54,7 +54,7 @@ int StreamQ::GetUseSize(void)
 	}
 }
 
-int StreamQ::GetFreeSize(void)
+int NetLib::StreamQ::GetFreeSize(void)
 {
 	if (m_rear < m_front) {
 		return m_front - m_rear;
@@ -64,7 +64,7 @@ int StreamQ::GetFreeSize(void)
 	}
 }
 
-int StreamQ::GetNotBrokenGetSize(void)
+int NetLib::StreamQ::GetNotBrokenGetSize(void)
 {
 	if (m_rear > m_front) {
 		return m_rear - m_front - 1;
@@ -79,7 +79,7 @@ int StreamQ::GetNotBrokenGetSize(void)
 	}
 }
 
-int StreamQ::GetNotBrokenPutSize(void)
+int NetLib::StreamQ::GetNotBrokenPutSize(void)
 {
 	if (m_rear > m_front) {
 		return m_bufferSize - m_rear;
@@ -89,7 +89,7 @@ int StreamQ::GetNotBrokenPutSize(void)
 	}
 }
 
-BOOL StreamQ::Enqueue(char * chpData, int iSize)
+BOOL NetLib::StreamQ::Enqueue(char * chpData, int iSize)
 {
 	int front = m_front;
 	int rear = m_rear;
@@ -138,7 +138,7 @@ BOOL StreamQ::Enqueue(char * chpData, int iSize)
 	}
 }
 
-BOOL StreamQ::Dequeue(char * chpDest, int iSize)
+BOOL NetLib::StreamQ::Dequeue(char * chpDest, int iSize)
 {
 	int front = m_front;
 	int rear = m_rear;
@@ -199,7 +199,7 @@ BOOL StreamQ::Dequeue(char * chpDest, int iSize)
 	}
 }
 
-BOOL StreamQ::Peek(char * chpDest, int iSize)
+BOOL NetLib::StreamQ::Peek(char * chpDest, int iSize)
 {
 	int front = m_front;
 	int rear = m_rear;
@@ -258,47 +258,47 @@ BOOL StreamQ::Peek(char * chpDest, int iSize)
 	}
 }
 
-int StreamQ::MoveRear(int iSize)
+int NetLib::StreamQ::MoveRear(int iSize)
 {
 	m_rear = (m_rear + iSize) % m_bufferSize;
 
 	return iSize;
 }
 
-int StreamQ::MoveFront(int iSize)
+int NetLib::StreamQ::MoveFront(int iSize)
 {
 	m_front = (m_front + iSize) % m_bufferSize;
 
 	return iSize;
 }
 
-void StreamQ::ClearBuffer(void)
+void NetLib::StreamQ::ClearBuffer(void)
 {
 	m_front = 0;
 	m_rear = 1;
 }
 
-char * StreamQ::GetFrontBufferPtr(void)
+char * NetLib::StreamQ::GetFrontBufferPtr(void)
 {
 	return &m_pBuffer[(m_front + 1) % m_bufferSize];
 }
 
-char * StreamQ::GetRearBufferPtr(void)
+char * NetLib::StreamQ::GetRearBufferPtr(void)
 {
 	return &m_pBuffer[(m_rear) % m_bufferSize];
 }
 
-char * StreamQ::GetBufferStartPtr(void)
+char * NetLib::StreamQ::GetBufferStartPtr(void)
 {
 	return m_pBuffer;
 }
 
-void StreamQ::Lock(void)
+void NetLib::StreamQ::Lock(void)
 {
 	EnterCriticalSection(&m_streamQCS);
 }
 
-void StreamQ::Release(void)
+void NetLib::StreamQ::Release(void)
 {
 	LeaveCriticalSection(&m_streamQCS);
 }

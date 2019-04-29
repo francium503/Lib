@@ -1,6 +1,6 @@
 #pragma once
 
-namespace netLib {
+namespace NetLib {
 	class HTTP
 	{
 	public:

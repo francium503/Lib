@@ -2,7 +2,7 @@
 #include "CpuUsage.h"
 
 
-CpuUsage::CpuUsage()
+NetLib::CpuUsage::CpuUsage()
 {
 	hProcess = GetCurrentProcess();
 
@@ -31,7 +31,7 @@ CpuUsage::CpuUsage()
 	UpdateCpuTime();
 }
 
-CpuUsage::CpuUsage(HANDLE hProcess)
+NetLib::CpuUsage::CpuUsage(HANDLE hProcess)
 {
 	hProcess = hProcess;
 
@@ -60,7 +60,7 @@ CpuUsage::CpuUsage(HANDLE hProcess)
 	UpdateCpuTime();
 }
 
-void CpuUsage::UpdateCpuTime(void)
+void NetLib::CpuUsage::UpdateCpuTime(void)
 {
 	ULARGE_INTEGER idle;
 	ULARGE_INTEGER kernel;
@@ -116,6 +116,6 @@ void CpuUsage::UpdateCpuTime(void)
 }
 
 
-CpuUsage::~CpuUsage()
+NetLib::CpuUsage::~CpuUsage()
 {
 }
