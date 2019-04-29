@@ -9,10 +9,9 @@ void NetLib::Log::SysLog(WCHAR * szType, eLogLevel logLevel, WCHAR * szStringFor
 
 	WCHAR LogString[1024];
 	va_list vaList;
-	va_list value;
 
 	va_start(vaList, szStringFormat);
-	va_copy(value, vaList);
+	vswprintf_s(LogString, szStringFormat, vaList);
 
-	HRESULT result = StringCbPrintf(LogString, 1024 * sizeof(WCHAR), szStringFormat, );
+
 }
