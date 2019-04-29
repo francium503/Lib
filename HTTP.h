@@ -1,24 +1,27 @@
 #pragma once
-class HTTP
-{
-public:
-	HTTP();
-	HTTP(int connectTimeOut, int requestTimeOut, int responseTimeOut);
-	~HTTP();
 
-	void SetURI(char* szURI, int URILength);
+namespace netLib {
+	class HTTP
+	{
+	public:
+		HTTP();
+		HTTP(int connectTimeOut, int requestTimeOut, int responseTimeOut);
+		~HTTP();
 
-	int Request(const char* buffer, int bufferSize, char* response, int* responseSize);
-	int URIRequest(WCHAR* szURIAddr, const char* buffer, int bufferSize, char* response, int* responseSize);
+		void SetURI(char* szURI, int URILength);
 
-private:
-	SOCKET sock;
-	char* URI;
+		int Request(const char* buffer, int bufferSize, char* response, int* responseSize);
+		int URIRequest(WCHAR* szURIAddr, const char* buffer, int bufferSize, char* response, int* responseSize);
 
-	int connectTimeOut;
-	int requestTimeOut;
-	int responseTimeOut;
+	private:
+		SOCKET sock;
+		char* URI;
 
-	int URIParse(char* URI, char* host, short* port, char* file);
-};
+		int connectTimeOut;
+		int requestTimeOut;
+		int responseTimeOut;
 
+		int URIParse(char* URI, char* host, short* port, char* file);
+	};
+
+}

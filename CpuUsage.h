@@ -1,41 +1,44 @@
 #pragma once
 
-class CpuUsage
-{
-public:
-	CpuUsage();
-	CpuUsage(HANDLE hProcess);
+namespace NetLib {
 
-	void UpdateCpuTime(void);
+	class CpuUsage
+	{
+	public:
+		CpuUsage();
+		CpuUsage(HANDLE hProcess);
 
-	float ProcessorTotal(void) { return fProcessorTotal; }
-	float ProcessorUser(void) { return fProcessorUser; }
-	float ProcessorKernel(void) { return fProcessorKernel; }
+		void UpdateCpuTime(void);
 
-	float ProcessTotal(void) { return fProcessTotal; }
-	float ProcessUser(void) { return fProcessUser; }
-	float ProcessKernel(void) { return fProcessKernel; }
+		float ProcessorTotal(void) { return fProcessorTotal; }
+		float ProcessorUser(void) { return fProcessorUser; }
+		float ProcessorKernel(void) { return fProcessorKernel; }
 
-	~CpuUsage();
+		float ProcessTotal(void) { return fProcessTotal; }
+		float ProcessUser(void) { return fProcessUser; }
+		float ProcessKernel(void) { return fProcessKernel; }
 
-private:
-	HANDLE hProcess;
-	int iNumberofProcessors;
+		~CpuUsage();
 
-	float fProcessorTotal;
-	float fProcessorUser;
-	float fProcessorKernel;
+	private:
+		HANDLE hProcess;
+		int iNumberofProcessors;
 
-	float fProcessTotal;
-	float fProcessUser;
-	float fProcessKernel;
+		float fProcessorTotal;
+		float fProcessorUser;
+		float fProcessorKernel;
 
-	ULARGE_INTEGER ftProcessor_LastKernel;
-	ULARGE_INTEGER ftProcessor_LastUser;
-	ULARGE_INTEGER ftProcessor_LastIdle;
+		float fProcessTotal;
+		float fProcessUser;
+		float fProcessKernel;
 
-	ULARGE_INTEGER ftProcess_LastKernel;
-	ULARGE_INTEGER ftProcess_LastUser;
-	ULARGE_INTEGER ftProcess_LastTime;
-};
+		ULARGE_INTEGER ftProcessor_LastKernel;
+		ULARGE_INTEGER ftProcessor_LastUser;
+		ULARGE_INTEGER ftProcessor_LastIdle;
 
+		ULARGE_INTEGER ftProcess_LastKernel;
+		ULARGE_INTEGER ftProcess_LastUser;
+		ULARGE_INTEGER ftProcess_LastTime;
+	};
+
+}
