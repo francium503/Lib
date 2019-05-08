@@ -6,7 +6,6 @@ NetLib::PacketBuffer::PacketBuffer()
 {
 	m_chpBuffer = new char[eBuffer_DEFAULT];
 	m_iBufferSize = eBuffer_DEFAULT;
-	m_iDataSize = 0;
 	m_iReadPos = 0;
 	m_iWritePos = 0;
 }
@@ -15,7 +14,6 @@ NetLib::PacketBuffer::PacketBuffer(int iBuffSize)
 {
 	m_chpBuffer = new char[iBuffSize];
 	m_iBufferSize = iBuffSize;
-	m_iDataSize = 0;
 	m_iReadPos = 0;
 	m_iWritePos = 0;
 }
@@ -35,7 +33,6 @@ void NetLib::PacketBuffer::Clear(void)
 {
 	m_iReadPos = 0;
 	m_iWritePos = 0;
-	m_iDataSize = 0;
 }
 
 int NetLib::PacketBuffer::MoveWritePos(int iPos)
@@ -67,7 +64,6 @@ int NetLib::PacketBuffer::MoveReadPos(int iPos)
 NetLib::PacketBuffer & NetLib::PacketBuffer::operator=(PacketBuffer & rhs)
 {
 	this->m_iBufferSize = rhs.m_iBufferSize;
-	this->m_iDataSize = rhs.m_iDataSize;
 	this->m_iWritePos = rhs.m_iWritePos;
 	this->m_iReadPos = rhs.m_iReadPos;
 
@@ -75,7 +71,7 @@ NetLib::PacketBuffer & NetLib::PacketBuffer::operator=(PacketBuffer & rhs)
 
 	m_chpBuffer = new char[m_iBufferSize];
 
-	memcpy_s(m_chpBuffer, m_iDataSize, rhs.m_chpBuffer, m_iDataSize);
+	memcpy_s(m_chpBuffer, m_iBufferSize, rhs.m_chpBuffer, m_iBufferSize);
 
 	return *this;
 }

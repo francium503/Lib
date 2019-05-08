@@ -27,7 +27,7 @@ namespace NetLib {
 
 		// 패킷 사이즈 얻기
 		int GetDataSize(void) {
-			return m_iDataSize;
+			return m_iWritePos - m_iReadPos;
 		}
 
 		// 버퍼 포인터 얻기
@@ -72,7 +72,6 @@ namespace NetLib {
 
 	protected:
 		int m_iBufferSize;
-		int m_iDataSize;
 
 		int m_iWritePos;
 		int m_iReadPos;
