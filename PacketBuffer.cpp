@@ -38,22 +38,7 @@ void NetLib::PacketBuffer::Clear(void)
 	m_iDataSize = 0;
 }
 
-inline int NetLib::PacketBuffer::GetBufferSize(void)
-{
-	return m_iBufferSize;
-}
-
-inline int NetLib::PacketBuffer::GetDataSize(void)
-{
-	return m_iDataSize;
-}
-
-inline char * NetLib::PacketBuffer::GetBufferPtr(void)
-{
-	return m_chpBuffer;
-}
-
-int NetLib::PacketBuffer::MoveWritePos(unsigned int iPos)
+int NetLib::PacketBuffer::MoveWritePos(int iPos)
 {
 	if (m_iWritePos + iPos >= m_iBufferSize) {
 		int tmp = m_iBufferSize - m_iWritePos - 1;
@@ -66,7 +51,7 @@ int NetLib::PacketBuffer::MoveWritePos(unsigned int iPos)
 	}
 }
 
-int NetLib::PacketBuffer::MoveReadPos(unsigned int iPos)
+int NetLib::PacketBuffer::MoveReadPos(int iPos)
 {
 	if (m_iReadPos + iPos >= m_iBufferSize) {
 		int tmp = m_iBufferSize - m_iReadPos - 1;

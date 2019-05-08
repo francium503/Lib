@@ -21,18 +21,24 @@ namespace NetLib {
 		void Clear(void);
 
 		// 버퍼 사이즈 얻기
-		int GetBufferSize(void);
+		int GetBufferSize(void) {
+			return m_iBufferSize;
+		}
 
 		// 패킷 사이즈 얻기
-		int GetDataSize(void);
+		int GetDataSize(void) {
+			return m_iDataSize;
+		}
 
 		// 버퍼 포인터 얻기
-		char* GetBufferPtr(void);
+		char* GetBufferPtr(void) {
+			return m_chpBuffer;
+		}
 
 
 		// 버퍼 포인터 위치 이동용 함수
-		int MoveWritePos(unsigned int iPos);
-		int MoveReadPos(unsigned int iPos);
+		int MoveWritePos(int iPos);
+		int MoveReadPos(int iPos);
 
 		// 대입 연산자 오버로딩
 		PacketBuffer& operator =(PacketBuffer &rhs);
