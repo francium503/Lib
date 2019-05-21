@@ -1,38 +1,60 @@
 #include "pch.h"
 #include "PacketBuffer.h"
+#include "MiniDump.h"
 
+NetLib::ObjectFreeList<NetLib::PacketBuffer> NetLib::PacketBuffer::m_freeList = NetLib::ObjectFreeList<NetLib::PacketBuffer>();
 
 NetLib::PacketBuffer::PacketBuffer()
 {
-	m_chpBuffer = new char[eBuffer_DEFAULT];
+	m_startBuffer = new char[eBuffer_DEFAULT + eHeader_Size];
+	m_chpBuffer = &m_startBuffer[eHeader_Size];
 	m_iBufferSize = eBuffer_DEFAULT;
 	m_iReadPos = 0;
 	m_iWritePos = 0;
+	m_refCount = 0;
+	m_isSet = true;
+	change = 0;
 }
 
 NetLib::PacketBuffer::PacketBuffer(int iBuffSize)
 {
-	m_chpBuffer = new char[iBuffSize];
+	m_startBuffer = new char[iBuffSize + eHeader_Size];
+	m_chpBuffer = &m_startBuffer[eHeader_Size];
 	m_iBufferSize = iBuffSize;
 	m_iReadPos = 0;
 	m_iWritePos = 0;
+	m_refCount = 0;
+	m_isSet = true;
 }
 
 
 NetLib::PacketBuffer::~PacketBuffer()
 {
-	delete[] m_chpBuffer;
+	m_isSet = false;
+	delete m_startBuffer;
 }
 
 void NetLib::PacketBuffer::Release(void)
 {
-	delete[] m_chpBuffer;
+	m_iReadPos = 0;
+	m_iWritePos = 0;
+	m_refCount = 0;
 }
 
 void NetLib::PacketBuffer::Clear(void)
 {
 	m_iReadPos = 0;
 	m_iWritePos = 0;
+	m_refCount = 0;
+}
+
+int NetLib::PacketBuffer::GetDataSize()
+{
+	if(m_iWritePos == 0)
+	{
+		CrashDump::Crash();
+	}
+	return m_iWritePos - m_iReadPos;
 }
 
 int NetLib::PacketBuffer::MoveWritePos(int iPos)
@@ -42,10 +64,9 @@ int NetLib::PacketBuffer::MoveWritePos(int iPos)
 		m_iWritePos = m_iBufferSize - 1;
 		return tmp;
 	}
-	else {
-		m_iWritePos += iPos;
-		return iPos;
-	}
+
+	m_iWritePos += iPos;
+	return iPos;
 }
 
 int NetLib::PacketBuffer::MoveReadPos(int iPos)
@@ -63,7 +84,7 @@ int NetLib::PacketBuffer::MoveReadPos(int iPos)
 
 NetLib::PacketBuffer & NetLib::PacketBuffer::operator=(PacketBuffer & rhs)
 {
-	this->m_iBufferSize = rhs.m_iBufferSize;
+this->m_iBufferSize = rhs.m_iBufferSize;
 	this->m_iWritePos = rhs.m_iWritePos;
 	this->m_iReadPos = rhs.m_iReadPos;
 
@@ -262,5 +283,68 @@ int NetLib::PacketBuffer::PutData(char * chpSrc, int iPutSize)
 	memcpy_s(chpSrc, iPutSize, &m_chpBuffer[m_iWritePos], iPutSize);
 
 	return iPutSize;
+}
+
+void NetLib::PacketBuffer::SetHeader(short* header)
+{
+	short *tmp = (short *)&m_startBuffer[3];
+
+	*tmp = *header;
+}
+
+char* NetLib::PacketBuffer::GetHeaderPtr()
+{
+	return &m_startBuffer[3];
+}
+
+void NetLib::PacketBuffer::InitializePacketBuffer(int iBuffSize)
+{
+	m_startBuffer = new char[iBuffSize + eHeader_Size];
+	m_chpBuffer = &m_startBuffer[eHeader_Size];
+	m_iBufferSize = iBuffSize;
+	m_iReadPos = 0;
+	m_iWritePos = 0;
+	m_refCount = 0;
+	m_isSet = true;
+}
+
+NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
+{
+	PacketBuffer* p = m_freeList.Alloc();
+
+	if (p->m_refCount != 0)
+		CrashDump::Crash();
+
+	p->Clear();
+	p->change = 0;
+
+	InterlockedIncrement(&p->m_refCount);
+
+	return p;
+}
+
+bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
+{
+	InterlockedDecrement(&pPacket->m_refCount);
+	if (pPacket->m_refCount > 2 || pPacket->m_refCount < 0)
+		CrashDump::Crash();
+
+	if(pPacket->m_refCount == 0)
+	{
+		pPacket->Clear();
+
+		if(!m_freeList.Free(pPacket))
+		{
+			NetLib::CrashDump::Crash();
+		}
+	}
+
+
+	return true;
+}
+
+void NetLib::PacketBuffer::AddRef()
+{
+	InterlockedIncrement(&m_refCount);
 }
 

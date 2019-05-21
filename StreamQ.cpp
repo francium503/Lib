@@ -46,11 +46,15 @@ int NetLib::StreamQ::GetBufferSize(void)
 
 int NetLib::StreamQ::GetUseSize(void)
 {
-	if (m_rear < m_front) {
-		return (m_rear)+(m_bufferSize - (m_front + 1));
+	int rear = m_rear;
+	int front = m_front;
+	int buffer = m_bufferSize;
+
+	if (rear < front) {
+		return (rear)+(buffer - (front + 1));
 	}
 	else {
-		return m_rear - m_front - 1;
+		return rear - front - 1;
 	}
 }
 

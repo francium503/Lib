@@ -2,6 +2,8 @@
 #include "LanServer.h"
 #include "StreamQ.h"
 #include "PacketBuffer.h"
+#include "Log.h"
+#include "MiniDump.h"
 
 NetLib::LanServer::LanServer()
 {
@@ -185,6 +187,10 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 				lanServer->pSessionArr[i].session.recvQ = new StreamQ(15000);
 				lanServer->pSessionArr[i].session.sendQ = new StreamQ(15000);
 
+				lanServer->pSessionArr[i].session.sendBuf = nullptr;
+				lanServer->pSessionArr[i].session.sendBufCount = 0;
+				lanServer->pSessionArr[i].session.sendBufSendCount = 0;
+
 				lanServer->pSessionArr[i].session.IOCount = 0;
 				lanServer->pSessionArr[i].session.sending = FALSE;
 				CreateIoCompletionPort((HANDLE)lanServer->pSessionArr[i].session.sock, lanServer->hcp, (ULONG_PTR)&lanServer->pSessionArr[i].session, 0);
@@ -213,7 +219,8 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 	DWORD transferred = 0;
 	Session *session = nullptr;
 	OVERLAPPED *overlapped = nullptr;
-	NetLib::LanServer *lanServer = static_cast<LanServer *>(arg);
+	LanServer *lanServer = static_cast<LanServer *>(arg);
+
 
 	do {
 		transferred = 0;
@@ -228,7 +235,8 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 			//NULL NULL 0으로 스레드 종료
 			break;
 		}
-		else if (overlapped == NULL) {
+		
+		if (overlapped == NULL) {
 			lanServer->OnError(GetLastError(), const_cast<WCHAR *>(L" - GetLastError value\n"));
 		}
 		else if (transferred == 0) {
@@ -236,35 +244,80 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 			lanServer->Disconnect(session->sessionID);
 		}
 		else if (session->recvOverlapped == overlapped) {
-			//TODO 패킷 검사 추가 필요
-			PacketBuffer *packet = new PacketBuffer(transferred + 10);
-
 			session->recvQ->MoveRear(transferred);
 
-			BOOL result = session->recvQ->Dequeue(packet->GetBufferPtr(), transferred);
-			packet->MoveWritePos(transferred);
+			while (true) {
+				header h;
 
-			if (result != TRUE) {
-				lanServer->NoMessageError(recvQ_Dequeue_FAIL);
-				delete packet;
-			}
-			else {
+				if (session->recvQ->GetUseSize() < 2)
+				{
+					break;
+				}
+
+				if (!session->recvQ->Peek((char *)&h, sizeof(h)))
+				{
+					Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"Header Peek error\n"));
+					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
+				}
+
+				if (session->recvQ->GetUseSize() < h.len) {
+					break;
+				}
+
+				session->recvQ->MoveFront(sizeof(h));
+
+				PacketBuffer* packet = PacketBuffer::Alloc();
+				packet->change = 2;
+
+				if(!session->recvQ->Dequeue(packet->GetBufferPtr(), h.len))
+				{
+					Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"recvQ Dequeue error\n"));
+					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
+				}
+
+				packet->change = 21;
+				packet->MoveWritePos(h.len);
+
+				packet->change = 22;
 				lanServer->OnRecv(session->sessionID, packet);
-				delete packet;
+
+				packet->change = 23;
+				PacketBuffer::Free(packet);
 			}
 
 			lanServer->RecvPost(session);
 		}
 		else if (session->sendOverlapped == overlapped) {
-			session->sendQ->MoveFront(transferred);
+			int sendSize = transferred;
+			int lenSize = sendSize;
+			for (int i = 0; i < session->sendBufSendCount; ++i) {
+				PacketBuffer *packet;
+
+				if (!session->sendQ->Dequeue((char *)&packet, sizeof(PacketBuffer *)))
+				{
+					lanServer->NoMessageError(sendQ_Dequeue_FAIL);
+				}
+				packet->change = 3;
+				int packetSize = packet->GetDataSize();
+
+				sendSize -= packetSize + 2;
+				lenSize -= session->sendBuf[i].len;
+				lanServer->OnSend(session->sessionID, packetSize);
+
+				PacketBuffer::Free(packet);
+			}
+
+			if (sendSize != 0 || lenSize != sendSize)
+				CrashDump::Crash();
+
+			//session->sendQ->MoveFront(transferred);
 
 			InterlockedCompareExchange(&session->sending, FALSE, TRUE);
+
 
 			if (session->sendQ->GetUseSize() > 0) {
 				lanServer->SendPost(session);
 			}
-
-			lanServer->OnSend(session->sessionID, transferred);
 		}
 
 		InterlockedDecrement(&session->IOCount);
@@ -315,7 +368,6 @@ void NetLib::LanServer::RecvPost(Session * session)
 			if (error == WSAENOBUFS) {
 				OnError(socket_FAIL, const_cast<WCHAR *>(L"WSAE NO BUF"));
 			}
-
 			InterlockedDecrement(&session->IOCount);
 
 			if (session->IOCount == 0) {
@@ -331,8 +383,7 @@ void NetLib::LanServer::SendPost(Session * session)
 	if (InterlockedCompareExchange(&session->sending, TRUE, FALSE)) {
 		return;
 	}
-
-	WSABUF wsaBuf[2];
+	
 	DWORD flags = 0;
 	int retval = 0;
 	int bufCount = 0;
@@ -350,9 +401,11 @@ void NetLib::LanServer::SendPost(Session * session)
 	}
 
 	InterlockedIncrement(&session->IOCount);
-
 	ZeroMemory(session->sendOverlapped, sizeof(OVERLAPPED));
 
+	//TODO 그냥 StreamQ에서 빼서 전송하는 방법
+/*
+	WSABUF wsaBuf[2];
 	if (getSize < useSize) {
 		wsaBuf[0].buf = session->sendQ->GetFrontBufferPtr();
 		wsaBuf[0].len = getSize;
@@ -368,15 +421,54 @@ void NetLib::LanServer::SendPost(Session * session)
 		bufCount = 1;
 	}
 	retval = WSASend(session->sock, wsaBuf, bufCount, NULL, flags, session->sendOverlapped, NULL);
+*/
+
+	//TODO 패킷 포인터를 이용해서 전송하는 방법
+	int packetCount = useSize / sizeof(PacketBuffer *);
+	if (session->sendBufCount < packetCount)
+	{
+		if (session->sendBuf != nullptr) {
+			delete[] session->sendBuf;
+
+			session->sendBuf = new WSABUF[packetCount];
+			session->sendBufCount = packetCount;
+		}
+		else
+		{
+			session->sendBuf = new WSABUF[packetCount];
+			session->sendBufCount = packetCount;
+		}
+	}
+
+	session->sendBufSendCount = packetCount;
+
+	char* pData = new char[packetCount * sizeof(PacketBuffer *)];
+
+	if(!session->sendQ->Peek(pData, packetCount * sizeof(PacketBuffer *)))
+	{
+		NoMessageError(sendQ_Dequeue_FAIL);
+	}
+
+	for(int i=0;i< session->sendBufSendCount; ++i)
+	{
+		PacketBuffer* packet;
+		memcpy_s(&packet, sizeof(PacketBuffer *), &pData[i * sizeof(PacketBuffer *)], sizeof(PacketBuffer *));
+
+		session->sendBuf[i].buf = packet->GetHeaderPtr();
+		//TODO 헤더 사이즈 생각해서 +2 만큼 len에 해줌
+		session->sendBuf[i].len = packet->GetDataSize() + 2;
+	}
+
+	retval = WSASend(session->sock, session->sendBuf, session->sendBufSendCount, NULL, flags, session->sendOverlapped, NULL);
+
+	delete[] pData;
 
 	if (retval == SOCKET_ERROR) {
 		int error = WSAGetLastError();
-
 		if (error != WSA_IO_PENDING) {
 			if (error == WSAENOBUFS) {
 				OnError(socket_FAIL, const_cast<WCHAR *>(L"WSAE NO BUF"));
 			}
-
 			InterlockedDecrement(&session->IOCount);
 
 			if (session->IOCount == 0) {
@@ -427,7 +519,7 @@ bool NetLib::LanServer::Disconnect(SESSIONID SessionID)
 			if (pSessionArr[i].isUsing == FALSE)
 				return false;
 
-			shutdown(pSessionArr[i].session.sock, SD_BOTH);
+			shutdown(pSessionArr[i].session.sock, SD_RECEIVE);
 			--connectClient;
 			break;
 		}
@@ -437,9 +529,16 @@ bool NetLib::LanServer::Disconnect(SESSIONID SessionID)
 
 bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 {
+	short len = packet->GetDataSize();
+	packet->SetHeader(&len);
+
 	for (int i = 0; i < maximumConnectUser; ++i) {
 		if (pSessionArr[i].session.sessionID == SessionID) {
-			if (!pSessionArr[i].session.sendQ->Enqueue(packet->GetBufferPtr(), packet->GetDataSize())) {
+
+			packet->change = 4;
+			packet->AddRef();
+			if (!pSessionArr[i].session.sendQ->Enqueue((char *)&packet, sizeof(PacketBuffer *))) {
+				Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"sendQ packet Enqueue fail\n"));
 				NoMessageError(sendQ_Enqueue_FAIL);
 				return false;
 			}
@@ -449,6 +548,5 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 			break;
 		}
 	}
-
 	return true;
 }

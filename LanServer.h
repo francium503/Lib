@@ -1,6 +1,15 @@
 #pragma once
 
 namespace NetLib {
+
+	#pragma pack(push, 1)
+	struct header
+	{
+		short len;
+	};
+
+	#pragma pack(pop)
+
 	class PacketBuffer;
 	class StreamQ;
 	typedef __int64 SESSIONID;
@@ -14,6 +23,9 @@ namespace NetLib {
 	private:
 		OVERLAPPED *recvOverlapped;
 		OVERLAPPED *sendOverlapped;
+		WSABUF *sendBuf;
+		int sendBufCount;
+		int sendBufSendCount;
 		SOCKET sock;
 		StreamQ *sendQ;
 		StreamQ *recvQ;
@@ -107,4 +119,5 @@ namespace NetLib {
 #define sendQ_Dequeue_FAIL 13
 #define sendQ_Enqueue_FAIL 14
 #define transferred_Zero 15
+#define PacketBuffer_Free_FAIL 16
 }
