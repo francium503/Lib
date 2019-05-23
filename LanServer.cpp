@@ -267,7 +267,6 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				session->recvQ->MoveFront(sizeof(h));
 
 				PacketBuffer* packet = PacketBuffer::Alloc();
-				packet->change = 2;
 
 				if(!session->recvQ->Dequeue(packet->GetBufferPtr(), h.len))
 				{
@@ -275,13 +274,10 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
 				}
 
-				packet->change = 21;
 				packet->MoveWritePos(h.len);
 
-				packet->change = 22;
 				lanServer->OnRecv(session->sessionID, packet);
 
-				packet->change = 23;
 				PacketBuffer::Free(packet);
 			}
 
@@ -297,7 +293,6 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				{
 					lanServer->NoMessageError(sendQ_Dequeue_FAIL);
 				}
-				packet->change = 3;
 				int packetSize = packet->GetDataSize();
 
 				sendSize -= packetSize + 2;
@@ -535,7 +530,6 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 	for (int i = 0; i < maximumConnectUser; ++i) {
 		if (pSessionArr[i].session.sessionID == SessionID) {
 
-			packet->change = 4;
 			packet->AddRef();
 			if (!pSessionArr[i].session.sendQ->Enqueue((char *)&packet, sizeof(PacketBuffer *))) {
 				Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"sendQ packet Enqueue fail\n"));

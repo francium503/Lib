@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "PacketBuffer.h"
 #include "MiniDump.h"
+#include "Log.h"
 
 NetLib::ObjectFreeList<NetLib::PacketBuffer> NetLib::PacketBuffer::m_freeList = NetLib::ObjectFreeList<NetLib::PacketBuffer>();
 
@@ -13,7 +14,7 @@ NetLib::PacketBuffer::PacketBuffer()
 	m_iWritePos = 0;
 	m_refCount = 0;
 	m_isSet = true;
-	change = 0;
+	InitializeSRWLock(&srwLock);
 }
 
 NetLib::PacketBuffer::PacketBuffer(int iBuffSize)
@@ -25,6 +26,7 @@ NetLib::PacketBuffer::PacketBuffer(int iBuffSize)
 	m_iWritePos = 0;
 	m_refCount = 0;
 	m_isSet = true;
+	InitializeSRWLock(&srwLock);
 }
 
 
@@ -312,25 +314,33 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 {
 	PacketBuffer* p = m_freeList.Alloc();
 
+	//Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"Alloc"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"%p Alloc"), p);
+
+
+	AcquireSRWLockExclusive(&p->srwLock);
 	if (p->m_refCount != 0)
 		CrashDump::Crash();
 
 	p->Clear();
-	p->change = 0;
 
 	InterlockedIncrement(&p->m_refCount);
+
+
+	ReleaseSRWLockExclusive(&p->srwLock);
 
 	return p;
 }
 
 bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 {
+	AcquireSRWLockExclusive(&pPacket->srwLock);
 	InterlockedDecrement(&pPacket->m_refCount);
 	if (pPacket->m_refCount > 2 || pPacket->m_refCount < 0)
 		CrashDump::Crash();
 
 	if(pPacket->m_refCount == 0)
 	{
+		//Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"Alloc"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"%p Free"), pPacket);
 		pPacket->Clear();
 
 		if(!m_freeList.Free(pPacket))
@@ -339,7 +349,7 @@ bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 		}
 	}
 
-
+	ReleaseSRWLockExclusive(&pPacket->srwLock);
 	return true;
 }
 

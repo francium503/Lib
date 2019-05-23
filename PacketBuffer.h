@@ -95,8 +95,9 @@ namespace NetLib {
 		long m_refCount;
 		bool m_isSet;
 
+		SRWLOCK srwLock;
+
 	public:
-		long change;
 		static ObjectFreeList<PacketBuffer> m_freeList;
 	};
 
