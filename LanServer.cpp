@@ -267,6 +267,7 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				session->recvQ->MoveFront(sizeof(h));
 
 				PacketBuffer* packet = PacketBuffer::Alloc();
+				packet->AllocPos = 1;
 
 				if(!session->recvQ->Dequeue(packet->GetBufferPtr(), h.len))
 				{
@@ -278,6 +279,7 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 
 				lanServer->OnRecv(session->sessionID, packet);
 
+				packet->FreePos = 1;
 				PacketBuffer::Free(packet);
 			}
 
@@ -299,6 +301,7 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				lenSize -= session->sendBuf[i].len;
 				lanServer->OnSend(session->sessionID, packetSize);
 
+				packet->FreePos = 2;
 				PacketBuffer::Free(packet);
 			}
 
