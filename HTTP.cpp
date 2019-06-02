@@ -179,7 +179,7 @@ int NetLib::HTTP::Request(const char * buffer, int bufferSize, char * response, 
 				return WSAGetLastError();
 			}
 
-			protocolSize = protocol.size() - 1;
+			protocolSize = (int)protocol.size() - 1;
 			retval = send(sock, protocol.c_str(), protocolSize, 0);
 
 			if (retval != protocolSize) {
