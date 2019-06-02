@@ -14,7 +14,6 @@ NetLib::PacketBuffer::PacketBuffer()
 	m_iWritePos = 0;
 	m_refCount = 0;
 	m_isSet = true;
-	InitializeSRWLock(&srwLock);
 }
 
 NetLib::PacketBuffer::PacketBuffer(int iBuffSize)
@@ -26,7 +25,6 @@ NetLib::PacketBuffer::PacketBuffer(int iBuffSize)
 	m_iWritePos = 0;
 	m_refCount = 0;
 	m_isSet = true;
-	InitializeSRWLock(&srwLock);
 }
 
 
@@ -314,42 +312,31 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 {
 	PacketBuffer* p = m_freeList.Alloc();
 
-	//Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"Alloc"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"%p Alloc"), p);
-
-
-	AcquireSRWLockExclusive(&p->srwLock);
 	if (p->m_refCount != 0)
 		CrashDump::Crash();
 
 	p->Clear();
-
+	p->allocThreadId = GetCurrentThreadId();
 	InterlockedIncrement(&p->m_refCount);
-
-
-	ReleaseSRWLockExclusive(&p->srwLock);
 
 	return p;
 }
 
 bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 {
-	AcquireSRWLockExclusive(&pPacket->srwLock);
 	InterlockedDecrement(&pPacket->m_refCount);
 	if (pPacket->m_refCount > 2 || pPacket->m_refCount < 0)
 		CrashDump::Crash();
 
 	if(pPacket->m_refCount == 0)
 	{
-		//Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"Alloc"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"%p Free"), pPacket);
-		pPacket->Clear();
-
+		pPacket->FreethreadId = GetCurrentThreadId();
 		if(!m_freeList.Free(pPacket))
 		{
-			NetLib::CrashDump::Crash();
+			CrashDump::Crash();
 		}
 	}
 
-	ReleaseSRWLockExclusive(&pPacket->srwLock);
 	return true;
 }
 
