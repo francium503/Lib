@@ -80,26 +80,19 @@ namespace NetLib {
 		st_BLOCK_NODE *tmp = nullptr;
 
 		if (m_pFreeNode == nullptr) {
-			if (m_bPlacementNew) {
-				tmp = new st_BLOCK_NODE;
-				tmp->chChecksum = m_chChecksum;
-			}
-			else {
-				tmp = new st_BLOCK_NODE;
-				tmp->chChecksum = m_chChecksum;
-			}
-			m_pFreeNode = nullptr;
+			tmp = new st_BLOCK_NODE;
+			tmp->chChecksum = m_chChecksum;
+
 			InterlockedIncrement(&m_iAllocCount);
 		}
 		else {
 			if (m_bPlacementNew) {
-				//m_pFreeNode->data = T();
+				new (&tmp->data) T;
 			}
 			tmp = m_pFreeNode;
 			m_pFreeNode = tmp->pNextNode;
 			tmp->pNextNode = nullptr;
 		}
-
 
 		InterlockedIncrement(&m_iUseCount);
 
