@@ -533,12 +533,12 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 	for (int i = 0; i < maximumConnectUser; ++i) {
 		if (pSessionArr[i].session.sessionID == SessionID) {
 
-			packet->AddRef();
 			if (!pSessionArr[i].session.sendQ->Enqueue((char *)&packet, sizeof(PacketBuffer *))) {
 				Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"sendQ packet Enqueue fail\n"));
 				NoMessageError(sendQ_Enqueue_FAIL);
 				return false;
 			}
+			packet->AddRef();
 
 			SendPost(&pSessionArr[i].session);
 
