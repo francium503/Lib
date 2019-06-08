@@ -95,12 +95,8 @@ namespace NetLib {
 		long m_refCount;
 		bool m_isSet;
 
-		int FreethreadId = 0;
-		int allocThreadId = 0;
 
 	public:
-		int FreePos = 0;
-		int AllocPos = 0;
 		static ObjectFreeList<PacketBuffer> m_freeList;
 	};
 

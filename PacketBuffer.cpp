@@ -38,14 +38,12 @@ void NetLib::PacketBuffer::Release(void)
 {
 	m_iReadPos = 0;
 	m_iWritePos = 0;
-	m_refCount = 0;
 }
 
 void NetLib::PacketBuffer::Clear(void)
 {
 	m_iReadPos = 0;
 	m_iWritePos = 0;
-	m_refCount = 0;
 }
 
 int NetLib::PacketBuffer::GetDataSize()
@@ -316,7 +314,6 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 		CrashDump::Crash();
 
 	p->Clear();
-	p->allocThreadId = GetCurrentThreadId();
 	InterlockedIncrement(&p->m_refCount);
 
 	return p;
@@ -324,18 +321,15 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 
 bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 {
-	InterlockedDecrement(&pPacket->m_refCount);
-	if (pPacket->m_refCount > 2 || pPacket->m_refCount < 0)
-		CrashDump::Crash();
-
-	if(pPacket->m_refCount == 0)
+	
+	if(InterlockedDecrement(&pPacket->m_refCount) == 0)
 	{
-		pPacket->FreethreadId = GetCurrentThreadId();
 		if(!m_freeList.Free(pPacket))
 		{
 			CrashDump::Crash();
 		}
-	}
+	} else if (pPacket->m_refCount > 2 || pPacket->m_refCount < 0)
+		CrashDump::Crash();
 
 	return true;
 }

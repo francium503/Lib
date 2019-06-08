@@ -40,6 +40,10 @@ namespace NetLib {
 		bool m_bPlacementNew;
 		char m_chChecksum;
 		SRWLOCK srwLock;
+
+	public:
+		long alloc = 0;
+		long free = 0;
 	};
 
 	template<class T>
@@ -97,6 +101,7 @@ namespace NetLib {
 		InterlockedIncrement(&m_iUseCount);
 
 		ReleaseSRWLockExclusive(&srwLock);
+		InterlockedIncrement(&alloc);
 
 		return (T *)tmp;
 	}
@@ -121,6 +126,8 @@ namespace NetLib {
 
 		InterlockedDecrement(&m_iUseCount);
 		ReleaseSRWLockExclusive(&srwLock);
+
+		InterlockedIncrement(&free);
 		return true;
 	}
 

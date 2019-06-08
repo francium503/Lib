@@ -143,7 +143,7 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 	SOCKADDR_IN clientAddr;
 	int addrLen;
 	WCHAR ipv4[32];
-	short port;
+	u_short port;
 	NetLib::LanServer *lanServer = static_cast<LanServer *>(arg);
 
 	while (1) {
@@ -267,8 +267,6 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				session->recvQ->MoveFront(sizeof(h));
 
 				PacketBuffer* packet = PacketBuffer::Alloc();
-				packet->AllocPos = 1;
-
 				if(!session->recvQ->Dequeue(packet->GetBufferPtr(), h.len))
 				{
 					Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"recvQ Dequeue error\n"));
@@ -279,7 +277,6 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 
 				lanServer->OnRecv(session->sessionID, packet);
 
-				packet->FreePos = 1;
 				PacketBuffer::Free(packet);
 			}
 
@@ -301,7 +298,6 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				lenSize -= session->sendBuf[i].len;
 				lanServer->OnSend(session->sessionID, packetSize);
 
-				packet->FreePos = 2;
 				PacketBuffer::Free(packet);
 			}
 
@@ -538,7 +534,6 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 				NoMessageError(sendQ_Enqueue_FAIL);
 				return false;
 			}
-			packet->AddRef();
 
 			SendPost(&pSessionArr[i].session);
 

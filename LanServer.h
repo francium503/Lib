@@ -56,7 +56,7 @@ namespace NetLib {
 		bool Disconnect(SESSIONID SessionID);
 		bool SendPacket(SESSIONID SessionID, PacketBuffer* packet);
 
-		virtual bool OnConnectionRequest(WCHAR* szIP, short port) = 0;
+		virtual bool OnConnectionRequest(WCHAR* szIP, u_short port) = 0;
 		virtual void OnClientJoin(SESSIONID sessionID) = 0;
 		virtual void OnClientLeave(SESSIONID sessionID) = 0;
 
