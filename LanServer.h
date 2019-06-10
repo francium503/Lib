@@ -12,7 +12,18 @@ namespace NetLib {
 
 	class PacketBuffer;
 	class StreamQ;
-	typedef __int64 SESSIONID;
+
+	union SESSIONID
+	{
+		__int64 fullSessionID;
+		struct StructSessionID
+		{
+			int byte4;
+			u_short byte2;
+			u_short arrPos;
+		};
+		StructSessionID structSessionID;
+	};
 
 	class Session
 	{
@@ -34,7 +45,7 @@ namespace NetLib {
 		SESSIONID sessionID;
 
 		WCHAR ipv4Addr[32];
-		short port;
+		u_short port;
 
 
 		SRWLOCK srwLock;
@@ -78,6 +89,9 @@ namespace NetLib {
 		void StartFail();
 		void SessionRelease(Session *session);
 
+		Session* GetSessionPtr(SESSIONID sessionID);
+		u_short GetSessionPos(SESSIONID sessionID);
+
 		struct SessionArray{
 			Session session;
 			long isUsing;
@@ -96,7 +110,7 @@ namespace NetLib {
 
 		bool serverStatus;
 
-		SESSIONID lastSessionId;
+		__int64 lastSessionId;
 	};
 
 

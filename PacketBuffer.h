@@ -97,23 +97,6 @@ namespace NetLib {
 
 
 	public:
-		int allocPos;
-		int allocThread;
-		__int64 allocSessionID;
-		long allocCount;
-		int freePos;
-		int freeThread;
-		__int64 freeSessionID;
-		long freeCount;
-		int RealFreeThread;
-		__int64 RealFreeSessionID;
-		int RealFreePos;
-		long RealFreeCount;
-		int addRefPos;
-		int addRefThread;
-		__int64 addRefSessionID;
-		long addRefCount;
-
 		static ObjectFreeList<PacketBuffer> m_freeList;
 	};
 

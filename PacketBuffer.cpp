@@ -313,9 +313,6 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 	if (p->m_refCount != 0)
 		CrashDump::Crash();
 
-	InterlockedIncrement(&p->allocCount);
-	p->allocThread = GetCurrentThreadId();
-
 	p->Clear();
 	InterlockedIncrement(&p->m_refCount);
 
@@ -324,15 +321,9 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 
 bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 {
-	InterlockedIncrement(&pPacket->freeCount);
-	pPacket->freeThread = GetCurrentThreadId();
 	long refCount = InterlockedDecrement(&pPacket->m_refCount);
 	if(refCount == 0)
 	{
-		pPacket->RealFreeSessionID = pPacket->freeSessionID;
-		pPacket->RealFreeThread = pPacket->freeThread;
-		pPacket->RealFreePos = pPacket->freePos;
-		InterlockedIncrement(&pPacket->RealFreeCount);
 
 		if(!m_freeList.Free(pPacket))
 		{
@@ -346,8 +337,6 @@ bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 
 void NetLib::PacketBuffer::AddRef()
 {
-	addRefThread = GetCurrentThreadId();
-	InterlockedIncrement(&addRefCount);
 	InterlockedIncrement(&m_refCount);
 }
 
