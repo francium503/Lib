@@ -540,6 +540,7 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 
 			if (!pSessionArr[i].session.sendQ->Enqueue((char *)&packet, sizeof(PacketBuffer *))) {
 				Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"sendQ packet Enqueue fail\n"));
+				PacketBuffer::Free(packet);
 				NoMessageError(sendQ_Enqueue_FAIL);
 				return false;
 			}

@@ -82,7 +82,7 @@ int NetLib::PacketBuffer::MoveReadPos(int iPos)
 
 NetLib::PacketBuffer & NetLib::PacketBuffer::operator=(PacketBuffer & rhs)
 {
-this->m_iBufferSize = rhs.m_iBufferSize;
+	this->m_iBufferSize = rhs.m_iBufferSize;
 	this->m_iWritePos = rhs.m_iWritePos;
 	this->m_iReadPos = rhs.m_iReadPos;
 
@@ -310,12 +310,12 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 {
 	PacketBuffer* p = m_freeList.Alloc();
 
-
 	if (p->m_refCount != 0)
 		CrashDump::Crash();
 
 	InterlockedIncrement(&p->allocCount);
 	p->allocThread = GetCurrentThreadId();
+
 	p->Clear();
 	InterlockedIncrement(&p->m_refCount);
 
@@ -324,18 +324,21 @@ NetLib::PacketBuffer* NetLib::PacketBuffer::Alloc()
 
 bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 {
+	InterlockedIncrement(&pPacket->freeCount);
 	pPacket->freeThread = GetCurrentThreadId();
-	if(InterlockedDecrement(&pPacket->m_refCount) == 0)
+	long refCount = InterlockedDecrement(&pPacket->m_refCount);
+	if(refCount == 0)
 	{
 		pPacket->RealFreeSessionID = pPacket->freeSessionID;
 		pPacket->RealFreeThread = pPacket->freeThread;
 		pPacket->RealFreePos = pPacket->freePos;
+		InterlockedIncrement(&pPacket->RealFreeCount);
 
 		if(!m_freeList.Free(pPacket))
 		{
 			CrashDump::Crash();
 		}
-	} else if (pPacket->m_refCount > 2 || pPacket->m_refCount < 0)
+	} else if (refCount > 2 || refCount < 0)
 		CrashDump::Crash();
 
 	return true;

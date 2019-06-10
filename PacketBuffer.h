@@ -108,6 +108,7 @@ namespace NetLib {
 		int RealFreeThread;
 		__int64 RealFreeSessionID;
 		int RealFreePos;
+		long RealFreeCount;
 		int addRefPos;
 		int addRefThread;
 		__int64 addRefSessionID;
