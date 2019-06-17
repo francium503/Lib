@@ -1,4 +1,5 @@
 #pragma once
+#include "LockFreeStack.h"
 
 namespace NetLib {
 	template <class T>
@@ -7,15 +8,8 @@ namespace NetLib {
 		struct st_BLOCK_NODE
 		{
 			T data;
-			st_BLOCK_NODE *pNextNode;
 			char chChecksum;
-
-			st_BLOCK_NODE()
-			{
-				pNextNode = nullptr;
-			}
 		};
-
 
 	public:
 		ObjectFreeList(bool bPlacementNew = false, char checksum = 0x12);
@@ -34,56 +28,39 @@ namespace NetLib {
 		int GetUseCount(void) { return m_iUseCount; }
 
 	protected:
-		st_BLOCK_NODE * volatile m_pFreeNode;
+		LockFreeStack<st_BLOCK_NODE *> pFreeStack;
 		long m_iAllocCount;
 		long m_iUseCount;
 		bool m_bPlacementNew;
 		char m_chChecksum;
-		SRWLOCK srwLock;
-
 	public:
-		long alloc = 0;
-		long free = 0;
 	};
 
 	template<class T>
 	ObjectFreeList<T>::ObjectFreeList(bool bPlacementNew, char checksum)
 	{
-		m_pFreeNode = nullptr;
 		m_iAllocCount = 0;
 		m_iUseCount = 0;
 		m_bPlacementNew = bPlacementNew;
 		m_chChecksum = checksum;
-		InitializeSRWLock(&srwLock);
 	}
 
 	template<class T>
 	ObjectFreeList<T>::~ObjectFreeList()
 	{
-		for (int i = 0; i < m_iAllocCount - m_iUseCount; ++i) {
-			if (m_pFreeNode == nullptr)
-				break;
-
-			if (m_pFreeNode->chChecksum == m_chChecksum) {
-				st_BLOCK_NODE *tmp = m_pFreeNode->pNextNode;
-
-				delete m_pFreeNode;
-
-				m_pFreeNode = tmp;
-			}
-			else {
-				throw (100);
-			}
+		st_BLOCK_NODE *tmp;
+		while(pFreeStack.Pop(&tmp))
+		{
+			delete tmp;
 		}
 	}
 
 	template<class T>
 	T * ObjectFreeList<T>::Alloc(void)
 	{
-		AcquireSRWLockExclusive(&srwLock);
 		st_BLOCK_NODE *tmp = nullptr;
 
-		if (m_pFreeNode == nullptr) {
+		if (!pFreeStack.Pop(&tmp)) {
 			tmp = new st_BLOCK_NODE;
 			tmp->chChecksum = m_chChecksum;
 
@@ -93,15 +70,9 @@ namespace NetLib {
 			if (m_bPlacementNew) {
 				new (&tmp->data) T;
 			}
-			tmp = m_pFreeNode;
-			m_pFreeNode = tmp->pNextNode;
-			tmp->pNextNode = nullptr;
 		}
 
 		InterlockedIncrement(&m_iUseCount);
-
-		ReleaseSRWLockExclusive(&srwLock);
-		InterlockedIncrement(&alloc);
 
 		return (T *)tmp;
 	}
@@ -109,11 +80,9 @@ namespace NetLib {
 	template<class T>
 	bool ObjectFreeList<T>::Free(T * pData)
 	{
-		AcquireSRWLockExclusive(&srwLock);
 		st_BLOCK_NODE *tmp = (st_BLOCK_NODE *)pData;
 
 		if (tmp->chChecksum != m_chChecksum) {
-			ReleaseSRWLockExclusive(&srwLock);
 			return false;
 		}
 
@@ -121,13 +90,12 @@ namespace NetLib {
 			tmp->data.~T();
 		}
 
-		tmp->pNextNode = m_pFreeNode;
-		m_pFreeNode = tmp;
+		if(!pFreeStack.Push(tmp))
+		{
+			return false;
+		}
 
 		InterlockedDecrement(&m_iUseCount);
-		ReleaseSRWLockExclusive(&srwLock);
-
-		InterlockedIncrement(&free);
 		return true;
 	}
 
