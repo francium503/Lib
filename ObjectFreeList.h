@@ -1,5 +1,6 @@
 #pragma once
 #include "LockFreeStack.h"
+#include "MiniDump.h"
 
 namespace NetLib {
 	template <class T>
@@ -92,6 +93,7 @@ namespace NetLib {
 
 		if(!pFreeStack.Push(tmp))
 		{
+			CrashDump::Crash();
 			return false;
 		}
 

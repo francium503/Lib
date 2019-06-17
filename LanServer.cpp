@@ -91,15 +91,19 @@ bool NetLib::LanServer::Start(WCHAR * szIp, short port, int workerThreadCount, i
 
 	pSessionArr = new SessionArray[maximumConnectUser];
 
-	for (int i = 0; i < maximumConnectUser; ++i) {
-		pSessionArr[i].isUsing = false;
-	}
-
 	if (pSessionArr == nullptr) {
 		NoMessageError(Session_NEW_FAIL);
 		closesocket(listenSock);
 		return false;
 	}
+
+	for (int i = 0; i < maximumConnectUser; ++i) {
+		pSessionArr[i].isUsing = false;
+
+		emptySessionStack.Push(&pSessionArr[i].session);
+	}
+
+	
 
 	hThread = (HANDLE)_beginthreadex(NULL, 0, AcceptThread, this, 0, &threadId);
 
@@ -175,39 +179,59 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 			continue;
 		}
 
-		for (int i = 0; i < lanServer->maximumConnectUser; ++i) {
-			if (!InterlockedCompareExchange(&lanServer->pSessionArr[i].isUsing, TRUE, FALSE)) {
-				lanServer->pSessionArr[i].session.sock = clientSock;
-				
-				lanServer->pSessionArr[i].session.recvOverlapped = new OVERLAPPED;
-				ZeroMemory(lanServer->pSessionArr[i].session.recvOverlapped, sizeof(OVERLAPPED));
-				lanServer->pSessionArr[i].session.sendOverlapped = new OVERLAPPED;
-				ZeroMemory(lanServer->pSessionArr[i].session.sendOverlapped, sizeof(OVERLAPPED));
+		Session* pAcceptSession = nullptr;
 
-				lanServer->pSessionArr[i].session.recvQ = new StreamQ(15000);
-				lanServer->pSessionArr[i].session.sendQ = new StreamQ(15000);
+		bool result = lanServer->emptySessionStack.Pop(&pAcceptSession);
 
-				lanServer->pSessionArr[i].session.sendBuf = nullptr;
-				lanServer->pSessionArr[i].session.sendBufCount = 0;
-				lanServer->pSessionArr[i].session.sendBufSendCount = 0;
+		if(result == false)
+		{
+			shutdown(clientSock, SD_BOTH);
+			Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogWarning, const_cast<WCHAR *>(L"Connect FULL Connect count - %d\n"), lanServer->connectClient);
+		}else
+		{
+			pAcceptSession->sock = clientSock;
 
-				lanServer->pSessionArr[i].session.IOCount = 0;
-				lanServer->pSessionArr[i].session.sending = FALSE;
-				CreateIoCompletionPort((HANDLE)lanServer->pSessionArr[i].session.sock, lanServer->hcp, (ULONG_PTR)&lanServer->pSessionArr[i].session, 0);
+			pAcceptSession->recvOverlapped = new OVERLAPPED;
+			ZeroMemory(pAcceptSession->recvOverlapped, sizeof(OVERLAPPED));
+			pAcceptSession->sendOverlapped = new OVERLAPPED;
+			ZeroMemory(pAcceptSession->sendOverlapped, sizeof(OVERLAPPED));
 
-				lanServer->pSessionArr[i].session.port = ntohs(clientAddr.sin_port);
-				InetNtop(clientAddr.sin_family, &clientAddr.sin_addr, lanServer->pSessionArr[i].session.ipv4Addr, sizeof(lanServer->pSessionArr[i].session.ipv4Addr));
+			pAcceptSession->recvQ = new StreamQ(15000);
+			pAcceptSession->sendQ = new StreamQ(15000);
 
-				lanServer->pSessionArr[i].session.sessionID.fullSessionID = ++lanServer->lastSessionId;
-				lanServer->pSessionArr[i].session.sessionID.structSessionID.arrPos = i;
+			pAcceptSession->sendBuf = nullptr;
+			pAcceptSession->sendBufCount = 0;
+			pAcceptSession->sendBufSendCount = 0;
 
-				++(lanServer->connectClient);
+			pAcceptSession->IOCount = 0;
+			pAcceptSession->sending = FALSE;
+			CreateIoCompletionPort((HANDLE)pAcceptSession->sock, lanServer->hcp, (ULONG_PTR)pAcceptSession, 0);
 
-				lanServer->RecvPost(&lanServer->pSessionArr[i].session);
-				lanServer->OnClientJoin(lanServer->pSessionArr[i].session.sessionID);
+			pAcceptSession->port = ntohs(clientAddr.sin_port);
+			InetNtop(clientAddr.sin_family, &clientAddr.sin_addr, pAcceptSession->ipv4Addr, sizeof(pAcceptSession->ipv4Addr));
 
-				break;
+			pAcceptSession->sessionID.fullSessionID = ++lanServer->lastSessionId;
+
+			pAcceptSession->sessionID.structSessionID.arrPos = -1;
+			for(int i=0;i<lanServer->maximumConnectUser; ++i)
+			{
+				if(&lanServer->pSessionArr[i].session == pAcceptSession)
+				{
+					pAcceptSession->sessionID.structSessionID.arrPos = i;
+					break;
+				}
 			}
+
+			if(pAcceptSession->sessionID.structSessionID.arrPos == -1)
+			{
+				Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"Find Session Arr Pos Error"));
+				CrashDump::Crash();
+			}
+			++(lanServer->connectClient);
+
+			lanServer->RecvPost(pAcceptSession);
+			lanServer->OnClientJoin(pAcceptSession->sessionID);
+			
 		}
 	}
 

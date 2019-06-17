@@ -1,5 +1,7 @@
 #pragma once
 
+#include "LockFreeStack.h"
+
 namespace NetLib {
 
 	#pragma pack(push, 1)
@@ -47,7 +49,6 @@ namespace NetLib {
 		WCHAR ipv4Addr[32];
 		u_short port;
 
-
 		SRWLOCK srwLock;
 	};
 
@@ -83,11 +84,11 @@ namespace NetLib {
 		static unsigned int WINAPI AcceptThread(void *arg);
 		static unsigned int WINAPI WorkerThread(void *arg);
 
-		void RecvPost(Session *session);
-		void SendPost(Session *session);
+		void RecvPost(Session* session);
+		void SendPost(Session* session);
 
 		void StartFail();
-		void SessionRelease(Session *session);
+		void SessionRelease(Session* session);
 
 		Session* GetSessionPtr(SESSIONID sessionID);
 		u_short GetSessionPos(SESSIONID sessionID);
@@ -103,6 +104,7 @@ namespace NetLib {
 		SOCKET listenSock;
 		SOCKADDR_IN serverAddr;
 		SessionArray* pSessionArr;
+		LockFreeStack<Session *> emptySessionStack;
 
 		int maximumConnectUser;
 		int workerThreadCount;
