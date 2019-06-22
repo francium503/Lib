@@ -38,7 +38,7 @@ namespace NetLib {
 		int GetDataSize(void);
 
 		// 버퍼 포인터 얻기
-		char* GetBufferPtr(void) {
+		unsigned char* GetBufferPtr(void) {
 			return m_chpBuffer;
 		}
 
@@ -76,12 +76,18 @@ namespace NetLib {
 
 		// 헤더 크기 2byte
 		void SetHeader(short *header);
-		char* GetHeaderPtr(void);
+		void SetHeader(unsigned char code, unsigned char randKey, unsigned char hardKey);
+		void SetLen();
+		bool DecryptPacket(unsigned char hardKey);
+		unsigned char* GetHeaderPtr(void);
+
 		void InitializePacketBuffer(int iBuffSize);
 		void AddRef();
-
 		static PacketBuffer* Alloc();
 		static bool Free(PacketBuffer* pPacket);
+
+	private:
+
 
 	protected:
 		int m_iBufferSize;
@@ -89,14 +95,13 @@ namespace NetLib {
 		int m_iWritePos;
 		int m_iReadPos;
 
-		char* m_chpBuffer;
-		char* m_startBuffer;
+		unsigned char* m_chpBuffer;
+		unsigned char* m_startBuffer;
 
 		long m_refCount;
 		bool m_isSet;
+		bool m_bHeader;
 
-
-	public:
 		static ObjectFreeList<PacketBuffer> m_freeList;
 	};
 
