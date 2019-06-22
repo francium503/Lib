@@ -102,6 +102,7 @@ namespace NetLib {
 		bool m_isSet;
 		bool m_bHeader;
 
+	public:
 		static ObjectFreeList<PacketBuffer> m_freeList;
 	};
 

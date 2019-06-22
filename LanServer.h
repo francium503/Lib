@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LockFreeStack.h"
+#include "LockFreeQueue.h"
 
 namespace NetLib {
 
@@ -40,7 +41,8 @@ namespace NetLib {
 		int sendBufCount;
 		int sendBufSendCount;
 		SOCKET sock;
-		StreamQ *sendQ;
+		LockFreeQueue<PacketBuffer *> sendQ;
+		LockFreeQueue<PacketBuffer *> sendingQ;
 		StreamQ *recvQ;
 		long IOCount;
 		long sending;
