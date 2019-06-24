@@ -98,17 +98,15 @@ bool NetLib::LanServer::Start(WCHAR * szIp, short port, int workerThreadCount, i
 	}
 
 	for (int i = 0; i < maximumConnectUser; ++i) {
-		pSessionArr[i].isUsing = false;
-
-		emptySessionStack.Push(&pSessionArr[i].session);
+		pSessionArr[i].isUsing = FALSE;
+		emptySessionStack.Push(i);
 	}
-
-	
 
 	hThread = (HANDLE)_beginthreadex(NULL, 0, AcceptThread, this, 0, &threadId);
 
 	if (hThread == NULL) {
 		NoMessageError(_beginthreadex_FAIL);
+		CrashDump::Crash();
 		return false;
 	}
 
@@ -148,7 +146,7 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 	int addrLen;
 	WCHAR ipv4[32];
 	u_short port;
-	NetLib::LanServer *lanServer = static_cast<LanServer *>(arg);
+	LanServer *lanServer = static_cast<LanServer *>(arg);
 
 	while (1) {
 		addrLen = sizeof(clientAddr);
@@ -179,60 +177,56 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 			continue;
 		}
 
-		Session* pAcceptSession = nullptr;
+		int index = -1;
+		bool result = lanServer->emptySessionStack.Pop(&index);
+		Session* acceptSession = &lanServer->pSessionArr[index].session;
 
-		bool result = lanServer->emptySessionStack.Pop(&pAcceptSession);
-
-		if(result == false)
+		if(!result)
 		{
 			shutdown(clientSock, SD_BOTH);
 			Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogWarning, const_cast<WCHAR *>(L"Connect FULL Connect count - %d\n"), lanServer->connectClient);
-		}else
-		{
-			pAcceptSession->sock = clientSock;
-
-			pAcceptSession->recvOverlapped = new OVERLAPPED;
-			ZeroMemory(pAcceptSession->recvOverlapped, sizeof(OVERLAPPED));
-			pAcceptSession->sendOverlapped = new OVERLAPPED;
-			ZeroMemory(pAcceptSession->sendOverlapped, sizeof(OVERLAPPED));
-
-			pAcceptSession->recvQ = new StreamQ(15000);
-			//pAcceptSession->sendQ = new StreamQ(15000);
-
-			pAcceptSession->sendBuf = nullptr;
-			pAcceptSession->sendBufCount = 0;
-			pAcceptSession->sendBufSendCount = 0;
-
-			pAcceptSession->IOCount = 0;
-			pAcceptSession->sending = FALSE;
-			CreateIoCompletionPort((HANDLE)pAcceptSession->sock, lanServer->hcp, (ULONG_PTR)pAcceptSession, 0);
-
-			pAcceptSession->port = ntohs(clientAddr.sin_port);
-			InetNtop(clientAddr.sin_family, &clientAddr.sin_addr, pAcceptSession->ipv4Addr, sizeof(pAcceptSession->ipv4Addr));
-
-			pAcceptSession->sessionID.fullSessionID = ++lanServer->lastSessionId;
-
-			pAcceptSession->sessionID.structSessionID.arrPos = -1;
-			for(int i=0;i<lanServer->maximumConnectUser; ++i)
-			{
-				if(&lanServer->pSessionArr[i].session == pAcceptSession)
-				{
-					pAcceptSession->sessionID.structSessionID.arrPos = i;
-					break;
-				}
-			}
-
-			if(pAcceptSession->sessionID.structSessionID.arrPos == -1)
-			{
-				Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"Find Session Arr Pos Error"));
-				CrashDump::Crash();
-			}
-			++(lanServer->connectClient);
-
-			lanServer->RecvPost(pAcceptSession);
-			lanServer->OnClientJoin(pAcceptSession->sessionID);
-			
+			CrashDump::Crash();
 		}
+
+		if (index == -1)
+		{
+			Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"Find Session Arr Pos Error"));
+			CrashDump::Crash();
+		}
+
+		if(InterlockedCompareExchange(&lanServer->pSessionArr[index].isUsing, TRUE, FALSE))
+		{
+			Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"Get Using SessionIndex"));
+			CrashDump::Crash();
+		}
+
+		acceptSession->sock = clientSock;
+
+		acceptSession->recvOverlapped = new OVERLAPPED;
+		ZeroMemory(acceptSession->recvOverlapped, sizeof(OVERLAPPED));
+		acceptSession->sendOverlapped = new OVERLAPPED;
+		ZeroMemory(acceptSession->sendOverlapped, sizeof(OVERLAPPED));
+
+		acceptSession->recvQ = new StreamQ(15000);
+
+		acceptSession->sendBuf = nullptr;
+		acceptSession->sendBufCount = 0;
+		acceptSession->sendBufSendCount = 0;
+
+		acceptSession->IOCount = 0;
+		acceptSession->sending = FALSE;
+		CreateIoCompletionPort((HANDLE)acceptSession->sock, lanServer->hcp, (ULONG_PTR)acceptSession, 0);
+
+		acceptSession->port = ntohs(clientAddr.sin_port);
+		InetNtop(clientAddr.sin_family, &clientAddr.sin_addr, acceptSession->ipv4Addr, sizeof(acceptSession->ipv4Addr));
+
+		acceptSession->sessionID.fullSessionID = ++lanServer->lastSessionId;
+		acceptSession->sessionID.structSessionID.arrPos = index;
+
+		++(lanServer->connectClient);
+
+		lanServer->RecvPost(acceptSession);
+		lanServer->OnClientJoin(acceptSession->sessionID);
 	}
 
 	return 0;
@@ -328,8 +322,11 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 
 			if (sendSize != 0 || lenSize != sendSize)
 				CrashDump::Crash();
+			
+			delete session->sendBuf;
 
 			InterlockedCompareExchange(&session->sending, FALSE, TRUE);
+
 
 			if (session->sendQ.GetSize() > 0) {
 				lanServer->SendPost(session);

@@ -1,5 +1,17 @@
 #pragma once
 
+#pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "Winmm.lib")
+#pragma comment(lib, "DbgHelp.Lib")
+
+#include <WinSock2.h>
+#include <process.h>
+#include <WS2tcpip.h>
+#include <string>
+#include <Windows.h>
+#include <psapi.h>
+#include <DbgHelp.h>
+#include <strsafe.h>
 #include "LockFreeStack.h"
 #include "LockFreeQueue.h"
 
@@ -50,8 +62,6 @@ namespace NetLib {
 
 		WCHAR ipv4Addr[32];
 		u_short port;
-
-		SRWLOCK srwLock;
 	};
 
 
@@ -106,7 +116,7 @@ namespace NetLib {
 		SOCKET listenSock;
 		SOCKADDR_IN serverAddr;
 		SessionArray* pSessionArr;
-		LockFreeStack<Session *> emptySessionStack;
+		LockFreeStack<int> emptySessionStack;
 
 		int maximumConnectUser;
 		int workerThreadCount;

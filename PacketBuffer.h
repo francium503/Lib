@@ -57,6 +57,7 @@ namespace NetLib {
 		PacketBuffer& operator<<(float frhs);
 		PacketBuffer& operator<<(double drhs);
 		PacketBuffer& operator<<(__int64 i64rhs);
+		PacketBuffer& operator<<(WORD wrhs);
 
 
 		// 빼기 연산자 오버로딩
@@ -67,6 +68,7 @@ namespace NetLib {
 		PacketBuffer& operator>>(float &frhs);
 		PacketBuffer& operator>>(double &drhs);
 		PacketBuffer& operator>>(__int64 &i64rhs);
+		PacketBuffer& operator>>(WORD &wrhs);
 
 		// 직접 빼기
 		int GetData(char *chpDest, int iGetSize);

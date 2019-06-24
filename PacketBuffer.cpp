@@ -181,6 +181,18 @@ NetLib::PacketBuffer & NetLib::PacketBuffer::operator<<(__int64 i64rhs)
 	return *this;
 }
 
+NetLib::PacketBuffer& NetLib::PacketBuffer::operator<<(WORD wrhs)
+{
+	int size = sizeof(WORD);
+	if (m_iWritePos + size >= m_iBufferSize)
+		return *this;
+
+	memcpy_s(&m_chpBuffer[m_iWritePos], size, &wrhs, size);
+	m_iWritePos += size;
+
+	return *this;
+}
+
 NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(BYTE & brhs)
 {
 	int size = sizeof(BYTE);
@@ -265,6 +277,18 @@ NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(__int64 & i64rhs)
 	return *this;
 }
 
+NetLib::PacketBuffer& NetLib::PacketBuffer::operator>>(WORD& wrhs)
+{
+	int size = sizeof(WORD);
+	if (m_iReadPos + size > m_iWritePos)
+		return *this;
+
+	memcpy_s(&wrhs, size, &m_chpBuffer[m_iReadPos], size);
+	m_iReadPos += size;
+
+	return *this;
+}
+
 
 int NetLib::PacketBuffer::GetData(char * chpDest, int iGetSize)
 {
@@ -332,6 +356,7 @@ bool NetLib::PacketBuffer::DecryptPacket(unsigned char hardKey)
 	unsigned char p = 0;
 	unsigned char oldP = 0;
 	unsigned char randKey = m_startBuffer[3];
+	unsigned char oldData;
 
 	int checksum = 0;
 
@@ -349,11 +374,13 @@ bool NetLib::PacketBuffer::DecryptPacket(unsigned char hardKey)
 	{
 		if (i == 0) {
 			p = m_chpBuffer[i] ^ (hardKey + i + 1);
+			oldData = m_chpBuffer[i];
 			m_chpBuffer[i] = p ^ (randKey + 1);
 			oldP = p;
 		}
 		else {
-			p = m_chpBuffer[i] ^ (m_chpBuffer[i - 1] + hardKey + i + 1);
+			p = m_chpBuffer[i] ^ (oldData + hardKey + i + 1);
+			oldData = m_chpBuffer[i];
 			m_chpBuffer[i] = p ^ (randKey + (i + 1) + oldP);
 			oldP = p;
 		}
