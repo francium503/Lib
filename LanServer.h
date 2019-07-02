@@ -20,7 +20,10 @@ namespace NetLib {
 	#pragma pack(push, 1)
 	struct header
 	{
+		char code;
 		short len;
+		char randkey;
+		char checksum;
 	};
 
 	#pragma pack(pop)
@@ -39,6 +42,11 @@ namespace NetLib {
 		};
 		StructSessionID structSessionID;
 	};
+
+	inline bool operator<(const SESSIONID& lhs, const SESSIONID& rhs)
+	{
+		return lhs.fullSessionID < rhs.fullSessionID;
+	}
 
 	class Session
 	{
@@ -109,6 +117,7 @@ namespace NetLib {
 			Session session;
 			long isUsing;
 		};
+		int connectClient;
 
 	private:
 		WSADATA wsa;
@@ -120,7 +129,6 @@ namespace NetLib {
 
 		int maximumConnectUser;
 		int workerThreadCount;
-		int connectClient;
 
 		bool serverStatus;
 

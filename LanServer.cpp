@@ -267,12 +267,12 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 			while (true) {
 				header h;
 
-				if (session->recvQ->GetUseSize() < 2)
+				if (session->recvQ->GetUseSize() < sizeof(header))
 				{
 					break;
 				}
 
-				if (!session->recvQ->Peek((char *)&h, sizeof(h)))
+				if (!session->recvQ->Peek((char *)&h, sizeof(header)))
 				{
 					Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"Header Peek error\n"));
 					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
@@ -282,17 +282,25 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 					break;
 				}
 
-				session->recvQ->MoveFront(sizeof(h));
+				//session->recvQ->MoveFront(sizeof(h));
 
 				PacketBuffer* packet = PacketBuffer::Alloc();
 
-				if(!session->recvQ->Dequeue((char *)packet->GetBufferPtr(), h.len))
+				if(!session->recvQ->Dequeue((char *)packet->GetHeaderPtr(), sizeof(header) + h.len))
 				{
 					Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"recvQ Dequeue error\n"));
 					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
 				}
 
 				packet->MoveWritePos(h.len);
+
+				//NETSERVER 용 DecryptPacket 부분 추가
+				bool result = packet->DecryptPacket(0x32);
+
+				if(!result)
+				{
+					CrashDump::Crash();
+				}
 
 				lanServer->OnRecv(session->sessionID, packet);
 
@@ -302,8 +310,7 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 			lanServer->RecvPost(session);
 		}
 		else if (session->sendOverlapped == overlapped) {
-			int sendSize = transferred;
-			int lenSize = sendSize;
+			int packetSize;
 			for (int i = 0; i < session->sendBufSendCount; ++i) {
 				PacketBuffer *packet;
 
@@ -311,17 +318,24 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				{
 					lanServer->NoMessageError(sendQ_Dequeue_FAIL);
 				}
-				int packetSize = packet->GetDataSize();
+				packetSize = packet->GetDataSize();
+				/*if(session->sendBuf[i].len != packetSize + sizeof(header))
+				{
+					CrashDump::Crash();
+				}*/
 
-				sendSize -= packetSize + 2;
-				lenSize -= session->sendBuf[i].len;
-				lanServer->OnSend(session->sessionID, packetSize);
+				if(session->sendBuf[i].len != packetSize + sizeof(header))
+				{
+					CrashDump::Crash();
+				}
+
+				lanServer->OnSend(session->sessionID, session->sendBuf[i].len);
 
 				PacketBuffer::Free(packet);
 			}
 
-			if (sendSize != 0 || lenSize != sendSize)
-				CrashDump::Crash();
+			/*if (sendSize != 0 || lenSize != sendSize)
+				CrashDump::Crash();*/
 			
 			delete session->sendBuf;
 
@@ -392,7 +406,7 @@ void NetLib::LanServer::RecvPost(Session * session)
 
 void NetLib::LanServer::SendPost(Session * session)
 {
-	GOTO_SEND:
+GOTO_SEND:
 	if (InterlockedCompareExchange(&session->sending, TRUE, FALSE)) {
 		return;
 	}
@@ -433,8 +447,7 @@ void NetLib::LanServer::SendPost(Session * session)
 		}
 
 		session->sendBuf[i].buf = (char *)packet->GetHeaderPtr();
-		//TODO 헤더 사이즈 생각해서 +2 만큼 len에 해줌
-		session->sendBuf[i].len = packet->GetDataSize() + 2;
+		session->sendBuf[i].len = packet->GetDataSize() + sizeof(header);
 
 		if(!session->sendingQ.Enqueue(packet))
 		{
@@ -470,7 +483,6 @@ void NetLib::LanServer::StartFail()
 	if (listenSock != INVALID_SOCKET)
 		closesocket(listenSock);
 
-
 	WSACleanup();
 }
 
@@ -488,6 +500,7 @@ void NetLib::LanServer::SessionRelease(Session * session)
 		if (&pSessionArr[i].session == session) {
 			sessionId = pSessionArr[i].session.sessionID;
 			InterlockedCompareExchange(&pSessionArr[i].isUsing, FALSE, TRUE);
+			emptySessionStack.Push(sessionId.structSessionID.arrPos);
 		}
 	}
 
@@ -496,12 +509,20 @@ void NetLib::LanServer::SessionRelease(Session * session)
 
 NetLib::Session* NetLib::LanServer::GetSessionPtr(SESSIONID sessionID)
 {
-	return &pSessionArr[sessionID.structSessionID.arrPos].session;
+	if (pSessionArr[sessionID.structSessionID.arrPos].session.sessionID.fullSessionID == sessionID.fullSessionID) {
+
+		return &pSessionArr[sessionID.structSessionID.arrPos].session;
+	}
+
+	return nullptr;
 }
 
 u_short NetLib::LanServer::GetSessionPos(SESSIONID sessionID)
 {
-	return sessionID.structSessionID.arrPos;
+	if (pSessionArr[sessionID.structSessionID.arrPos].session.sessionID.fullSessionID == sessionID.fullSessionID)
+		return sessionID.structSessionID.arrPos;
+	else
+		return (u_short)-1;
 }
 
 
@@ -521,8 +542,17 @@ bool NetLib::LanServer::Disconnect(SESSIONID SessionID)
 
 bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 {
+	/*
 	short len = packet->GetDataSize();
 	packet->SetHeader(&len);
+	*/
+
+	static char randkey = 0;
+	
+	packet->SetHeader(0x77, randkey, 0x32);
+	//packet->SetLen();
+
+	++randkey;
 
 	Session *pSession = GetSessionPtr(SessionID);
 	packet->AddRef();

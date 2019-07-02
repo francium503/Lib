@@ -51,10 +51,6 @@ void NetLib::PacketBuffer::Clear(void)
 
 int NetLib::PacketBuffer::GetDataSize()
 {
-	if(m_iWritePos == 0)
-	{
-		CrashDump::Crash();
-	}
 	return m_iWritePos - m_iReadPos;
 }
 
@@ -277,7 +273,7 @@ NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(__int64 & i64rhs)
 	return *this;
 }
 
-NetLib::PacketBuffer& NetLib::PacketBuffer::operator>>(WORD& wrhs)
+NetLib::PacketBuffer & NetLib::PacketBuffer::operator>>(WORD& wrhs)
 {
 	int size = sizeof(WORD);
 	if (m_iReadPos + size > m_iWritePos)
@@ -297,6 +293,8 @@ int NetLib::PacketBuffer::GetData(char * chpDest, int iGetSize)
 
 	memcpy_s(chpDest, iGetSize, &m_chpBuffer[m_iReadPos], iGetSize);
 
+	m_iReadPos += iGetSize;
+
 	return iGetSize;
 }
 
@@ -306,6 +304,7 @@ int NetLib::PacketBuffer::PutData(char * chpSrc, int iPutSize)
 		return -1;
 
 	memcpy_s(chpSrc, iPutSize, &m_chpBuffer[m_iWritePos], iPutSize);
+	m_iWritePos += iPutSize;
 
 	return iPutSize;
 }
@@ -331,16 +330,22 @@ void NetLib::PacketBuffer::SetHeader(unsigned char code, unsigned char randKey, 
 	unsigned int checksum = 0;
 	for (int i = 0; i < m_iWritePos - m_iReadPos; ++i)
 	{
-		p =  m_chpBuffer[i] ^ (randKey + p + (i + 1));
-		if (i == 0)
-			m_chpBuffer[i] = p ^ (hardKey + (i + 1));
-		else
-			m_chpBuffer[i] = p ^ (hardKey + m_chpBuffer[i - 1] + (i + 1));
-
 		checksum += m_chpBuffer[i];
 	}
-
 	m_startBuffer[4] = (unsigned char)(checksum % 256);
+
+	for (int i = 0; i <= m_iWritePos - m_iReadPos; ++i)
+	{
+		p = m_startBuffer[4 + i] ^ (randKey + p + (i + 1));
+		if (i == 0)
+			m_startBuffer[4 + i] = p ^ (hardKey + (i + 1));
+		else
+			m_startBuffer[4 + i] = p ^ (hardKey + m_startBuffer[4 + i - 1] + (i + 1));
+	}
+
+	short *tmp = (short *)&m_startBuffer[1];
+
+	*tmp = m_iWritePos - m_iReadPos;
 
 }
 
@@ -351,47 +356,51 @@ void NetLib::PacketBuffer::SetLen()
 	*tmp = m_iWritePos - m_iReadPos;
 }
 
+short NetLib::PacketBuffer::GetLen()
+{
+	return *(short *)&m_startBuffer[1];
+}
+
 bool NetLib::PacketBuffer::DecryptPacket(unsigned char hardKey)
 {
 	unsigned char p = 0;
 	unsigned char oldP = 0;
 	unsigned char randKey = m_startBuffer[3];
 	unsigned char oldData;
-
 	int checksum = 0;
 
-	for(int i=0;i < m_iWritePos - m_iReadPos; ++i)
+
+	for (int i = 0; i <= m_iWritePos - m_iReadPos; ++i)
 	{
-		checksum += m_chpBuffer[i];
+		if (i == 0) {
+			p = m_startBuffer[4 + i] ^ (hardKey + i + 1);
+			oldData = m_startBuffer[4 + i];
+			m_startBuffer[4 + i] = p ^ (randKey + 1);
+			oldP = p;
+		}
+		else {
+			p = m_startBuffer[4 + i] ^ (oldData + hardKey + i + 1);
+			oldData = m_startBuffer[4 + i];
+			m_startBuffer[4 + i] = p ^ (randKey + (i + 1) + oldP);
+			oldP = p;
+			checksum += m_startBuffer[4 + i];
+		}
+
 	}
 
-	if((unsigned char)(checksum % 256) != m_startBuffer[4])
+	if ((unsigned char)(checksum % 256) != m_startBuffer[4])
 	{
 		return false;
 	}
 
-	for (int i = 0; i < m_iWritePos - m_iReadPos; ++i)
-	{
-		if (i == 0) {
-			p = m_chpBuffer[i] ^ (hardKey + i + 1);
-			oldData = m_chpBuffer[i];
-			m_chpBuffer[i] = p ^ (randKey + 1);
-			oldP = p;
-		}
-		else {
-			p = m_chpBuffer[i] ^ (oldData + hardKey + i + 1);
-			oldData = m_chpBuffer[i];
-			m_chpBuffer[i] = p ^ (randKey + (i + 1) + oldP);
-			oldP = p;
-		}
-	}
 
 	return true;
 }
 
 unsigned char* NetLib::PacketBuffer::GetHeaderPtr()
 {
-	return &m_startBuffer[3];
+	//return &m_startBuffer[3];
+	return m_startBuffer;
 }
 
 void NetLib::PacketBuffer::InitializePacketBuffer(int iBuffSize)

@@ -80,6 +80,7 @@ namespace NetLib {
 		void SetHeader(short *header);
 		void SetHeader(unsigned char code, unsigned char randKey, unsigned char hardKey);
 		void SetLen();
+		short GetLen();
 		bool DecryptPacket(unsigned char hardKey);
 		unsigned char* GetHeaderPtr(void);
 
