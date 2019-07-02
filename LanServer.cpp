@@ -488,6 +488,10 @@ void NetLib::LanServer::SessionRelease(Session * session)
 		if (&pSessionArr[i].session == session) {
 			sessionId = pSessionArr[i].session.sessionID;
 			InterlockedCompareExchange(&pSessionArr[i].isUsing, FALSE, TRUE);
+			if(!emptySessionStack.Push(sessionId.structSessionID.arrPos))
+			{
+				CrashDump::Crash();
+			}
 		}
 	}
 
