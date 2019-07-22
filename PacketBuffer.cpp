@@ -40,6 +40,7 @@ void NetLib::PacketBuffer::Release(void)
 {
 	m_iReadPos = 0;
 	m_iWritePos = 0;
+	m_bHeader = false;
 }
 
 void NetLib::PacketBuffer::Clear(void)
@@ -85,11 +86,11 @@ NetLib::PacketBuffer & NetLib::PacketBuffer::operator=(PacketBuffer & rhs)
 	this->m_iWritePos = rhs.m_iWritePos;
 	this->m_iReadPos = rhs.m_iReadPos;
 
-	delete[] m_chpBuffer;
+	delete[] m_startBuffer;
 
-	m_chpBuffer = new unsigned char[m_iBufferSize];
+	m_startBuffer = new unsigned char[rhs.m_iBufferSize + eHeader_Size];
 
-	memcpy_s(m_chpBuffer, m_iBufferSize, rhs.m_chpBuffer, m_iBufferSize);
+	memcpy_s(m_startBuffer, m_iBufferSize + eHeader_Size, rhs.m_startBuffer, m_iBufferSize + eHeader_Size);
 
 	return *this;
 }
@@ -292,7 +293,6 @@ int NetLib::PacketBuffer::GetData(char * chpDest, int iGetSize)
 		return -1;
 
 	memcpy_s(chpDest, iGetSize, &m_chpBuffer[m_iReadPos], iGetSize);
-
 	m_iReadPos += iGetSize;
 
 	return iGetSize;
@@ -303,7 +303,7 @@ int NetLib::PacketBuffer::PutData(char * chpSrc, int iPutSize)
 	if (m_iWritePos + iPutSize >= m_iBufferSize)
 		return -1;
 
-	memcpy_s(chpSrc, iPutSize, &m_chpBuffer[m_iWritePos], iPutSize);
+	memcpy_s(&m_chpBuffer[m_iWritePos], iPutSize, chpSrc, iPutSize);
 	m_iWritePos += iPutSize;
 
 	return iPutSize;
@@ -393,7 +393,6 @@ bool NetLib::PacketBuffer::DecryptPacket(unsigned char hardKey)
 		return false;
 	}
 
-
 	return true;
 }
 
@@ -438,8 +437,7 @@ bool NetLib::PacketBuffer::Free(PacketBuffer* pPacket)
 		{
 			CrashDump::Crash();
 		}
-	} else if (refCount > 2 || refCount < 0)
-		CrashDump::Crash();
+	}
 
 	return true;
 }

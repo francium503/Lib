@@ -202,18 +202,14 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 
 		acceptSession->sock = clientSock;
 
-		acceptSession->recvOverlapped = new OVERLAPPED;
-		ZeroMemory(acceptSession->recvOverlapped, sizeof(OVERLAPPED));
-		acceptSession->sendOverlapped = new OVERLAPPED;
-		ZeroMemory(acceptSession->sendOverlapped, sizeof(OVERLAPPED));
+		ZeroMemory(&acceptSession->recvOverlapped, sizeof(OVERLAPPED));
+		ZeroMemory(&acceptSession->sendOverlapped, sizeof(OVERLAPPED));
 
-		acceptSession->recvQ = new StreamQ(15000);
-
-		acceptSession->sendBuf = nullptr;
 		acceptSession->sendBufCount = 0;
 		acceptSession->sendBufSendCount = 0;
 
 		acceptSession->IOCount = 0;
+		acceptSession->isRelease = FALSE;
 		acceptSession->sending = FALSE;
 		CreateIoCompletionPort((HANDLE)acceptSession->sock, lanServer->hcp, (ULONG_PTR)acceptSession, 0);
 
@@ -261,24 +257,24 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 			// 0은 종료 처리
 			lanServer->Disconnect(session->sessionID);
 		}
-		else if (session->recvOverlapped == overlapped) {
-			session->recvQ->MoveRear(transferred);
+		else if (&session->recvOverlapped == overlapped) {
+			session->recvQ.MoveRear(transferred);
 
 			while (true) {
 				header h;
 
-				if (session->recvQ->GetUseSize() < sizeof(header))
+				if (session->recvQ.GetUseSize() < sizeof(header))
 				{
 					break;
 				}
 
-				if (!session->recvQ->Peek((char *)&h, sizeof(header)))
+				if (!session->recvQ.Peek((char *)&h, sizeof(header)))
 				{
 					Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"Header Peek error\n"));
 					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
 				}
 
-				if (session->recvQ->GetUseSize() < h.len) {
+				if (session->recvQ.GetUseSize() < h.len) {
 					break;
 				}
 
@@ -286,12 +282,16 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 
 				PacketBuffer* packet = PacketBuffer::Alloc();
 
-				if(!session->recvQ->Dequeue((char *)packet->GetHeaderPtr(), sizeof(header) + h.len))
+				if(packet->GetDataSize() != 0)
+				{
+					CrashDump::Crash();
+				}
+
+				if(!session->recvQ.Dequeue((char *)packet->GetHeaderPtr(), sizeof(header) + h.len))
 				{
 					Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"recvQ Dequeue error\n"));
 					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
 				}
-
 				packet->MoveWritePos(h.len);
 
 				//NETSERVER 용 DecryptPacket 부분 추가
@@ -309,7 +309,7 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 
 			lanServer->RecvPost(session);
 		}
-		else if (session->sendOverlapped == overlapped) {
+		else if (&session->sendOverlapped == overlapped) {
 			int packetSize;
 			for (int i = 0; i < session->sendBufSendCount; ++i) {
 				PacketBuffer *packet;
@@ -319,10 +319,6 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 					lanServer->NoMessageError(sendQ_Dequeue_FAIL);
 				}
 				packetSize = packet->GetDataSize();
-				/*if(session->sendBuf[i].len != packetSize + sizeof(header))
-				{
-					CrashDump::Crash();
-				}*/
 
 				if(session->sendBuf[i].len != packetSize + sizeof(header))
 				{
@@ -331,25 +327,22 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 
 				lanServer->OnSend(session->sessionID, session->sendBuf[i].len);
 
-				PacketBuffer::Free(packet);
+				bool result = PacketBuffer::Free(packet);
+
+				if(!result)
+				{
+					CrashDump::Crash();
+				}
 			}
 
-			/*if (sendSize != 0 || lenSize != sendSize)
-				CrashDump::Crash();*/
-			
-			delete session->sendBuf;
-
 			InterlockedCompareExchange(&session->sending, FALSE, TRUE);
-
 
 			if (session->sendQ.GetSize() > 0) {
 				lanServer->SendPost(session);
 			}
 		}
 
-		InterlockedDecrement(&session->IOCount);
-
-		if (session->IOCount == 0) {
+		if (InterlockedDecrement(&session->IOCount) == 0) {
 			lanServer->SessionRelease(session);
 		}
 
@@ -367,27 +360,27 @@ void NetLib::LanServer::RecvPost(Session * session)
 
 	InterlockedIncrement(&session->IOCount);
 
-	ZeroMemory(session->recvOverlapped, sizeof(OVERLAPPED));
+	ZeroMemory(&session->recvOverlapped, sizeof(OVERLAPPED));
 
-	int putSize = session->recvQ->GetNotBrokenPutSize();
+	int putSize = session->recvQ.GetNotBrokenPutSize();
 	int bufCount = 0;
-	int freeSize = session->recvQ->GetFreeSize();
+	int freeSize = session->recvQ.GetFreeSize();
 	if (putSize < freeSize) {
-		wsaBuf[0].buf = session->recvQ->GetRearBufferPtr();
+		wsaBuf[0].buf = session->recvQ.GetRearBufferPtr();
 		wsaBuf[0].len = putSize;
-		wsaBuf[1].buf = session->recvQ->GetBufferStartPtr();
+		wsaBuf[1].buf = session->recvQ.GetBufferStartPtr();
 		wsaBuf[1].len = freeSize - putSize;
 
 		bufCount = 2;
 	}
 	else {
-		wsaBuf[0].buf = session->recvQ->GetRearBufferPtr();
+		wsaBuf[0].buf = session->recvQ.GetRearBufferPtr();
 		wsaBuf[0].len = putSize;
 
 		bufCount = 1;
 	}
 
-	retval = WSARecv(session->sock, wsaBuf, bufCount, NULL, &flags, session->recvOverlapped, NULL);
+	retval = WSARecv(session->sock, wsaBuf, bufCount, NULL, &flags, &session->recvOverlapped, NULL);
 
 	if (retval == SOCKET_ERROR) {
 		int error = WSAGetLastError();
@@ -395,9 +388,8 @@ void NetLib::LanServer::RecvPost(Session * session)
 			if (error == WSAENOBUFS) {
 				OnError(socket_FAIL, const_cast<WCHAR *>(L"WSAE NO BUF"));
 			}
-			InterlockedDecrement(&session->IOCount);
 
-			if (session->IOCount == 0) {
+			if (InterlockedDecrement(&session->IOCount) == 0) {
 				SessionRelease(session);
 			}
 		}
@@ -428,11 +420,9 @@ GOTO_SEND:
 	}
 
 	InterlockedIncrement(&session->IOCount);
-	ZeroMemory(session->sendOverlapped, sizeof(OVERLAPPED));
+	ZeroMemory(&session->sendOverlapped, sizeof(OVERLAPPED));
 
-	session->sendBuf = new WSABUF[getSize];
-
-	for(int i=0;i< getSize; ++i)
+	for(int i=0;i< min(getSize, WSA_BUFF_SIZE); ++i)
 	{
 		PacketBuffer* packet;
 		if(!session->sendQ.Dequeue(packet))
@@ -455,9 +445,9 @@ GOTO_SEND:
 		}
 	}
 
-	session->sendBufSendCount = getSize;
+	session->sendBufSendCount = min(getSize, WSA_BUFF_SIZE);
 
-	retval = WSASend(session->sock, session->sendBuf, session->sendBufSendCount, NULL, flags, session->sendOverlapped, NULL);
+	retval = WSASend(session->sock, session->sendBuf, session->sendBufSendCount, NULL, flags, &session->sendOverlapped, NULL);
 
 	if (retval == SOCKET_ERROR) {
 		int error = WSAGetLastError();
@@ -465,9 +455,8 @@ GOTO_SEND:
 			if (error == WSAENOBUFS) {
 				OnError(socket_FAIL, const_cast<WCHAR *>(L"WSAE NO BUF"));
 			}
-			InterlockedDecrement(&session->IOCount);
 
-			if (session->IOCount == 0) {
+			if (InterlockedDecrement(&session->IOCount) == 0) {
 				SessionRelease(session);
 			}
 		}
@@ -488,19 +477,33 @@ void NetLib::LanServer::StartFail()
 
 void NetLib::LanServer::SessionRelease(Session * session)
 {
-	SESSIONID sessionId;
-	delete session->recvOverlapped;
-	delete session->sendOverlapped;
-
-	delete session->recvQ;
+	if(InterlockedCompareExchange(&session->isRelease, TRUE, FALSE))
+	{
+		return;
+	}
 
 	closesocket(session->sock);
 
-	for (int i = 0; i < maximumConnectUser; ++i) {
-		if (&pSessionArr[i].session == session) {
-			sessionId = pSessionArr[i].session.sessionID;
-			InterlockedCompareExchange(&pSessionArr[i].isUsing, FALSE, TRUE);
-			emptySessionStack.Push(sessionId.structSessionID.arrPos);
+	SESSIONID sessionId;
+
+	PacketBuffer *p;
+	while (session->sendQ.Dequeue(p)){}
+	while (session->sendingQ.Dequeue(p)){}
+	session->recvQ.ClearBuffer();
+
+	int position = GetSessionPos(session->sessionID);
+
+	if(position == -1)
+	{
+		CrashDump::Crash();
+	}
+
+	if (&pSessionArr[position].session == session) {
+		sessionId = pSessionArr[position].session.sessionID;
+		InterlockedCompareExchange(&pSessionArr[position].isUsing, FALSE, TRUE);
+		if (!emptySessionStack.Push(sessionId.structSessionID.arrPos))
+		{
+			CrashDump::Crash();
 		}
 	}
 
@@ -528,15 +531,30 @@ u_short NetLib::LanServer::GetSessionPos(SESSIONID sessionID)
 
 bool NetLib::LanServer::Disconnect(SESSIONID SessionID)
 {
-	u_short sessionPos = GetSessionPos(SessionID);
+	Session* pSession = GetSessionPtr(SessionID);
 
-	if (pSessionArr[sessionPos].isUsing == FALSE) {
-		CrashDump::Crash();
+	if (pSession == nullptr)
 		return false;
+
+	if(InterlockedIncrement(&pSession->IOCount) == 1)
+	{
+		InterlockedDecrement(&pSession->IOCount);
+
+		shutdown(pSession->sock, SD_RECEIVE);
+		--connectClient;
+
+		SessionRelease(pSession);
+		return true;
 	}
 
-	shutdown(pSessionArr[sessionPos].session.sock, SD_RECEIVE);
+	shutdown(pSession->sock, SD_RECEIVE);
 	--connectClient;
+
+	if(InterlockedDecrement(&pSession->IOCount) == 0)
+	{
+		SessionRelease(pSession);
+	}
+
 	return true;
 }
 
@@ -546,15 +564,29 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 	short len = packet->GetDataSize();
 	packet->SetHeader(&len);
 	*/
-
 	static char randkey = 0;
 	
-	packet->SetHeader(0x77, randkey, 0x32);
-	//packet->SetLen();
-
-	++randkey;
+	packet->SetHeader(0x77, randkey++, 0x32);
 
 	Session *pSession = GetSessionPtr(SessionID);
+
+	if (pSession == nullptr)
+		return true;
+
+	if (InterlockedIncrement(&pSession->IOCount) == 1)
+	{
+		InterlockedDecrement(&pSession->IOCount);
+
+		SessionRelease(pSession);
+
+		return true;
+	}
+
+
+	if(pSession == nullptr)
+	{
+		CrashDump::Crash();
+	}
 	packet->AddRef();
 
 	if (!pSession->sendQ.Enqueue(packet)) {
@@ -565,6 +597,11 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 	}
 
 	SendPost(pSession);
-	
+
+	if(InterlockedDecrement(&pSession->IOCount) == 0)
+	{
+		SessionRelease(pSession);
+	}
+
 	return true;
 }

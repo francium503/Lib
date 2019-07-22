@@ -12,11 +12,13 @@
 #include <psapi.h>
 #include <DbgHelp.h>
 #include <strsafe.h>
+#include "StreamQ.h"
 #include "LockFreeStack.h"
 #include "LockFreeQueue.h"
 
 namespace NetLib {
 
+#define WSA_BUFF_SIZE 200
 	#pragma pack(push, 1)
 	struct header
 	{
@@ -41,12 +43,24 @@ namespace NetLib {
 			u_short arrPos;
 		};
 		StructSessionID structSessionID;
+
+		/*SESSIONID& operator=(const SESSIONID& rhs)
+		{
+			this->fullSessionID = rhs.fullSessionID;
+			return *this;
+		}*/
 	};
 
 	inline bool operator<(const SESSIONID& lhs, const SESSIONID& rhs)
 	{
 		return lhs.fullSessionID < rhs.fullSessionID;
 	}
+	/*
+	inline bool operator==(const SESSIONID& lhs, const SESSIONID& rhs)
+	{
+		return lhs.fullSessionID == rhs.fullSessionID;
+	}*/
+
 
 	class Session
 	{
@@ -55,16 +69,17 @@ namespace NetLib {
 	protected:
 
 	private:
-		OVERLAPPED *recvOverlapped;
-		OVERLAPPED *sendOverlapped;
-		WSABUF *sendBuf;
+		OVERLAPPED recvOverlapped;
+		OVERLAPPED sendOverlapped;
+		WSABUF sendBuf[WSA_BUFF_SIZE];
 		int sendBufCount;
 		int sendBufSendCount;
 		SOCKET sock;
 		LockFreeQueue<PacketBuffer *> sendQ;
 		LockFreeQueue<PacketBuffer *> sendingQ;
-		StreamQ *recvQ;
+		StreamQ recvQ;
 		long IOCount;
+		long isRelease;
 		long sending;
 		SESSIONID sessionID;
 

@@ -76,12 +76,15 @@ namespace NetLib
 						}
 					}
 					else {
-						data = next->data;
-						
-						if (InterlockedCompareExchangePointer((PVOID *)&pHeadNode, next, head) == head)
+						if (next != nullptr)
 						{
-							memoryPool.Free(head);
-							break;
+							data = next->data;
+
+							if (InterlockedCompareExchangePointer((PVOID *)&pHeadNode, next, head) == head)
+							{
+								memoryPool.Free(head);
+								break;
+							}
 						}
 					}
 				}
