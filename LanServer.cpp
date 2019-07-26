@@ -211,7 +211,6 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 		acceptSession->IOCount = 0;
 		acceptSession->isRelease = FALSE;
 		acceptSession->sending = FALSE;
-		CreateIoCompletionPort((HANDLE)acceptSession->sock, lanServer->hcp, (ULONG_PTR)acceptSession, 0);
 
 		acceptSession->port = ntohs(clientAddr.sin_port);
 		InetNtop(clientAddr.sin_family, &clientAddr.sin_addr, acceptSession->ipv4Addr, sizeof(acceptSession->ipv4Addr));
@@ -221,8 +220,9 @@ unsigned int WINAPI NetLib::LanServer::AcceptThread(void * arg)
 
 		++(lanServer->connectClient);
 
-		lanServer->RecvPost(acceptSession);
+		CreateIoCompletionPort((HANDLE)acceptSession->sock, lanServer->hcp, (ULONG_PTR)acceptSession, 0);
 		lanServer->OnClientJoin(acceptSession->sessionID);
+		lanServer->RecvPost(acceptSession);
 	}
 
 	return 0;
@@ -321,6 +321,12 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 				packetSize = packet->GetDataSize();
 
 				if(session->sendBuf[i].len != packetSize + sizeof(header))
+				{
+					CrashDump::Crash();
+				}
+
+
+				if(session->sessionID.structSessionID.arrPos >= lanServer->maximumConnectUser || session->sessionID.structSessionID.arrPos < 0)
 				{
 					CrashDump::Crash();
 				}

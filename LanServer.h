@@ -40,7 +40,7 @@ namespace NetLib {
 		{
 			int byte4;
 			u_short byte2;
-			u_short arrPos;
+			WORD arrPos;
 		};
 		StructSessionID structSessionID;
 
