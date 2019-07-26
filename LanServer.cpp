@@ -274,7 +274,7 @@ unsigned int WINAPI NetLib::LanServer::WorkerThread(void * arg)
 					lanServer->NoMessageError(recvQ_Dequeue_FAIL);
 				}
 
-				if (session->recvQ.GetUseSize() < h.len) {
+				if (session->recvQ.GetUseSize() < h.len + sizeof(h)) {
 					break;
 				}
 
