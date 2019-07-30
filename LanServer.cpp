@@ -493,8 +493,14 @@ void NetLib::LanServer::SessionRelease(Session * session)
 	SESSIONID sessionId;
 
 	PacketBuffer *p;
-	while (session->sendQ.Dequeue(p)){}
-	while (session->sendingQ.Dequeue(p)){}
+	while (session->sendQ.Dequeue(p))
+	{
+		PacketBuffer::Free(p);
+	}
+	while (session->sendingQ.Dequeue(p))
+	{
+		PacketBuffer::Free(p);
+	}
 	session->recvQ.ClearBuffer();
 
 	int position = GetSessionPos(session->sessionID);
@@ -576,25 +582,29 @@ bool NetLib::LanServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 
 	Session *pSession = GetSessionPtr(SessionID);
 
-	if (pSession == nullptr)
+	if (pSession == nullptr) {
 		return true;
+	}
 
 	if (InterlockedIncrement(&pSession->IOCount) == 1)
 	{
 		InterlockedDecrement(&pSession->IOCount);
 
 		SessionRelease(pSession);
-
 		return true;
 	}
-
 
 	if(pSession == nullptr)
 	{
 		CrashDump::Crash();
 	}
-	packet->AddRef();
 
+	if(pSession->sessionID.fullSessionID != SessionID.fullSessionID)
+	{
+		return true;
+	}
+
+	packet->AddRef();
 	if (!pSession->sendQ.Enqueue(packet)) {
 		Log::GetInstance()->SysLog(const_cast<WCHAR *>(L"LanServer"), Log::eLogLevel::eLogSystem, const_cast<WCHAR *>(L"sendQ packet Enqueue fail\n"));
 		PacketBuffer::Free(packet);
