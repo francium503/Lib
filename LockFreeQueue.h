@@ -15,13 +15,22 @@ namespace NetLib
 			Node* pNextNode;
 		};
 
+#define _pHeadNode (Node *)headInfo[0]
+#define _pHeadCounter headInfo[1]
+#define _pTailNode (Node *)tailInfo[0]
+#define _pTailCounter tailInfo[1]
+
 	public:
 		LockFreeQueue()
 		{
 			_size = 0;
-			pHeadNode = new Node;
-			pHeadNode->pNextNode = nullptr;
-			pTailNode = pHeadNode;
+			headInfo[0] = (LONG64)new Node;
+			Node* pH = _pHeadNode;
+			pH->pNextNode = nullptr;
+			_pHeadCounter = 0;
+			tailInfo[0] = headInfo[0];
+			_pTailCounter = 0;
+
 		}
 
 		bool Enqueue(T data)
@@ -29,57 +38,62 @@ namespace NetLib
 			Node* node = memoryPool.Alloc();
 			node->data = data;
 			node->pNextNode = nullptr;
+			LONG64 arr[2];
 
-			while(true)
+			while (true)
 			{
-				Node* tail = pTailNode;
+				LONG64 counter = _pTailCounter;
+				Node* tail = _pTailNode;
 				Node* next = tail->pNextNode;
 
-				if (tail == pTailNode) {
-					if (next == nullptr)
-					{
-						if (InterlockedCompareExchangePointer((PVOID *)&tail->pNextNode, node, next) == next)
-						{
-							InterlockedCompareExchangePointer((PVOID *)&pTailNode, node, tail);
-							break;
-						}
-					}else
-					{
-						InterlockedCompareExchangePointer((PVOID *)&pTailNode, next, tail);
+				if (next == nullptr)
+				{
+					if (InterlockedCompareExchangePointer((PVOID *)&tail->pNextNode, node, next) == next) {
+						arr[0] = (LONG64)tail;
+						arr[1] = counter;
+
+						InterlockedCompareExchange128(tailInfo, counter + 1, (LONG64)node, arr);
+						break;
 					}
+				}
+				else
+				{
+					InterlockedCompareExchangePointer((PVOID *)&tailInfo[0], next, tail);
 				}
 			}
 
 			InterlockedIncrement(&_size);
-			InterlockedIncrement(&enqueueCount);
 
 			return true;
 		}
 
 		bool Dequeue(T& data)
 		{
-			if (_size == 0)
-				return false;
-
-			while(true)
+			while (true)
 			{
-				Node* head = pHeadNode;
-				Node* next = pHeadNode->pNextNode;
-				Node* tail = pTailNode;
+				if (_size == 0)
+					return false;
 
-				if (head == pHeadNode) {
+				LONG64 counter = _pHeadCounter;
+				Node* head = _pHeadNode;
+				Node* next = head->pNextNode;
+				Node* tail = _pTailNode;
+				LONG64 arr[2];
 
-					if (head == tail) {
-						if (next == nullptr)
-						{
-							return false;
-						}
+				if (head == tail) {
+					if (next == nullptr) {
+						return false;
 					}
-					else {
+				}
+				else {
+					if (next != nullptr)
+					{
 						data = next->data;
-						
-						if (InterlockedCompareExchangePointer((PVOID *)&pHeadNode, next, head) == head)
-						{
+
+						arr[0] = (LONG64)head;
+						arr[1] = counter;
+
+						if (InterlockedCompareExchange128(headInfo, counter + 1, (LONG64)next, arr) == 1) {
 							memoryPool.Free(head);
 							break;
 						}
@@ -88,8 +102,7 @@ namespace NetLib
 			}
 
 			InterlockedDecrement(&_size);
-			InterlockedIncrement(&dequeueCount);
-			
+
 			return true;
 		}
 
@@ -100,10 +113,8 @@ namespace NetLib
 
 	private:
 		long _size;
-		Node* pHeadNode;
-		Node* pTailNode;
-		long enqueueCount = 0;
-		long dequeueCount = 0;
+		_declspec(align(16)) LONG64 tailInfo[2];
+		_declspec(align(16)) LONG64 headInfo[2];
 
 		ObjectFreeList<Node> memoryPool = ObjectFreeList<Node>(false, 0x12);
 	};

@@ -12,11 +12,13 @@
 #include <psapi.h>
 #include <DbgHelp.h>
 #include <strsafe.h>
+#include "StreamQ.h"
 #include "LockFreeStack.h"
 #include "LockFreeQueue.h"
 
 namespace NetLib {
 
+#define WSA_BUFF_SIZE 200
 	#pragma pack(push, 1)
 	struct header
 	{
@@ -35,10 +37,27 @@ namespace NetLib {
 		{
 			int byte4;
 			u_short byte2;
-			u_short arrPos;
+			WORD arrPos;
 		};
 		StructSessionID structSessionID;
+
+		/*SESSIONID& operator=(const SESSIONID& rhs)
+		{
+			this->fullSessionID = rhs.fullSessionID;
+			return *this;
+		}*/
 	};
+
+	inline bool operator<(const SESSIONID& lhs, const SESSIONID& rhs)
+	{
+		return lhs.fullSessionID < rhs.fullSessionID;
+	}
+	/*
+	inline bool operator==(const SESSIONID& lhs, const SESSIONID& rhs)
+	{
+		return lhs.fullSessionID == rhs.fullSessionID;
+	}*/
+
 
 	class Session
 	{
@@ -47,16 +66,17 @@ namespace NetLib {
 	protected:
 
 	private:
-		OVERLAPPED *recvOverlapped;
-		OVERLAPPED *sendOverlapped;
-		WSABUF *sendBuf;
+		OVERLAPPED recvOverlapped;
+		OVERLAPPED sendOverlapped;
+		WSABUF sendBuf[WSA_BUFF_SIZE];
 		int sendBufCount;
 		int sendBufSendCount;
 		SOCKET sock;
 		LockFreeQueue<PacketBuffer *> sendQ;
 		LockFreeQueue<PacketBuffer *> sendingQ;
-		StreamQ *recvQ;
+		StreamQ recvQ;
 		long IOCount;
+		long isRelease;
 		long sending;
 		SESSIONID sessionID;
 
@@ -109,6 +129,7 @@ namespace NetLib {
 			Session session;
 			long isUsing;
 		};
+		int connectClient;
 
 	private:
 		WSADATA wsa;
@@ -120,7 +141,6 @@ namespace NetLib {
 
 		int maximumConnectUser;
 		int workerThreadCount;
-		int connectClient;
 
 		bool serverStatus;
 
