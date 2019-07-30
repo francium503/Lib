@@ -167,6 +167,14 @@ unsigned int WINAPI NetLib::NetServer::AcceptThread(void * arg)
 			}
 		}
 
+		tcp_keepalive tcpkl;
+		tcpkl.onoff = 1;
+		tcpkl.keepaliveinterval = 1000;
+		tcpkl.keepalivetime = 30000;
+
+		DWORD dwRet;
+		WSAIoctl(clientSock, SIO_KEEPALIVE_VALS, &tcpkl, sizeof(tcp_keepalive), 0, 0, &dwRet, NULL, NULL);
+
 		port = ntohs(clientAddr.sin_port);
 		InetNtopW(clientAddr.sin_family, &clientAddr.sin_addr, ipv4, sizeof(ipv4));
 
@@ -613,7 +621,7 @@ bool NetLib::NetServer::SendPacket(SESSIONID SessionID, PacketBuffer * packet)
 	}
 
 	SendPost(pSession);
-
+	 
 	if(InterlockedDecrement(&pSession->IOCount) == 0)
 	{
 		SessionRelease(pSession);

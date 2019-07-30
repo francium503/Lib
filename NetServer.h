@@ -12,6 +12,7 @@
 #include <psapi.h>
 #include <DbgHelp.h>
 #include <strsafe.h>
+#include <mstcpip.h>
 #include "StreamQ.h"
 #include "LockFreeStack.h"
 #include "LockFreeQueue.h"
