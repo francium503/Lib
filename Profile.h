@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 
-#define MAX_PROFILE_TAG 100
+#define MAX_PROFILE_TAG 255
 
 #ifdef PROFILING
 	#define PRO_BEGIN(x) ProfileBegin(x)
