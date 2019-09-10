@@ -17,7 +17,7 @@ namespace NetLib {
 		virtual ~ObjectFreeList();
 
 		// alloc 해주기
-		T *Alloc(void);
+		T* Alloc(void);
 
 		// 메모리 반환
 		bool Free(T *pData);
@@ -57,7 +57,7 @@ namespace NetLib {
 	}
 
 	template<class T>
-	T * ObjectFreeList<T>::Alloc(void)
+	T* ObjectFreeList<T>::Alloc(void)
 	{
 		st_BLOCK_NODE *tmp = nullptr;
 

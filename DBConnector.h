@@ -1,6 +1,6 @@
 #pragma once
 
-#pragma comment(lib, "./mysql/lib/vs14/mysqlclient.lib")
+#pragma comment(lib, "B:/Git/Lib/mysql/lib/vs14/mysqlclient.lib")
 
 #include "./mysql/include/mysql.h"
 #include "./mysql/include/errmsg.h"

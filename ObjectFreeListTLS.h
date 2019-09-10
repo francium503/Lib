@@ -4,7 +4,7 @@
 
 namespace NetLib
 {
-#define Chunk_SIZE 200
+#define Chunk_SIZE 2000
 
 	template <class T>
 	class ObjectFreeListTLS{
@@ -80,20 +80,23 @@ namespace NetLib
 		};
 
 	private:
+		static DWORD tlsIndex;
 		ObjectFreeList<Chunk<T>>* memoryPool;
-		DWORD tlsIndex;
 		bool placementNew;
 	};
 
 	template <class T>
 	ObjectFreeListTLS<T>::ObjectFreeListTLS(bool bPlacementNew, char checksum)
 	{
-		tlsIndex = TlsAlloc();
-
-		if(tlsIndex == TLS_OUT_OF_INDEXES)
+		if (tlsIndex == TLS_OUT_OF_INDEXES)
 		{
-			DWORD error = GetLastError();
-			CrashDump::Crash();
+			tlsIndex = TlsAlloc();
+
+			if (tlsIndex == TLS_OUT_OF_INDEXES)
+			{
+				DWORD error = GetLastError();
+				CrashDump::Crash();
+			}
 		}
 
 		memoryPool = new ObjectFreeList<Chunk<T>>(false, checksum);
@@ -154,4 +157,7 @@ namespace NetLib
 
 		return pTmp->pChunk->Free(pTmp);
 	}
+
+	template <class T>
+	DWORD ObjectFreeListTLS<T>::tlsIndex = TlsAlloc();
 }
