@@ -42,6 +42,16 @@ namespace NetLib {
 			return m_chpBuffer;
 		}
 
+		//읽는 버퍼 위치 얻기
+		unsigned char* GetReadBufferPtr(void) {
+			return &m_chpBuffer[m_iReadPos];
+		}
+
+		//쓰는 버퍼 위치 얻기
+		unsigned char* GetWriteBufferPtr(void) {
+			return &m_chpBuffer[m_iWritePos];
+		}
+
 		// 버퍼 포인터 위치 이동용 함수
 		int MoveWritePos(int iPos);
 		int MoveReadPos(int iPos);
@@ -81,9 +91,13 @@ namespace NetLib {
 		void SetHeader(unsigned char code, unsigned char randKey, unsigned char hardKey);
 		void SetLen();
 		short GetLen();
+
+		//헤더 암호화 관련
 		bool DecryptPacket(unsigned char hardKey);
 		unsigned char* GetHeaderPtr(void);
 
+
+		//헤더 풀 사용 관련
 		void InitializePacketBuffer(int iBuffSize);
 		void AddRef();
 		static PacketBuffer* Alloc();
