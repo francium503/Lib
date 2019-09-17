@@ -89,7 +89,6 @@ void NetLib::ProfileTLS::TLSProfileEnd(WCHAR* szName)
 	
 	ProfileDataTLS *pD = nullptr;
 	ProfileDataTLS *threadList = nullptr;
-	DWORD error;
 	DWORD threadId = GetCurrentThreadId();
 
 	threadList = GetThreadProfileDataTLS(threadId);
@@ -149,7 +148,7 @@ void NetLib::ProfileTLS::TLSProfileDataOutText(WCHAR* szFileName)
 
 	QueryPerformanceFrequency(&liFre);
 
-	errno_t err = _wfopen_s(&fp, szFileName, L"a");
+	errno_t err = _wfopen_s(&fp, szFileName, L"w");
 
 	if (err != 0)
 	{
