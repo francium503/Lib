@@ -77,11 +77,6 @@ namespace NetLib {
 		Node* newTop;
 		LONG64 arr[2];
 
-		/*if(_top == nullptr)
-		{
-			return false;
-		}*/
-
 		do
 		{
 			counter = popCounter;

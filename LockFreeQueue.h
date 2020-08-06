@@ -3,6 +3,7 @@
 #include <Windows.h>
 
 #include "ObjectFreeList.h"
+#include "ObjectFreeListTLS.h"
 
 namespace NetLib
 {
@@ -116,6 +117,6 @@ namespace NetLib
 		_declspec(align(16)) LONG64 tailInfo[2];
 		_declspec(align(16)) LONG64 headInfo[2];
 
-		ObjectFreeList<Node> memoryPool = ObjectFreeList<Node>(false, 0x12);
+		ObjectFreeListTLS<Node> memoryPool = ObjectFreeListTLS<Node>(false, 0x12);
 	};
 }

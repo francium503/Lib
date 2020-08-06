@@ -4,7 +4,7 @@
 
 namespace NetLib
 {
-#define Chunk_SIZE 2000
+#define Chunk_SIZE 200
 
 	template <class T>
 	class ObjectFreeListTLS{
@@ -99,7 +99,7 @@ namespace NetLib
 			}
 		}
 
-		memoryPool = new ObjectFreeList<Chunk<T>>(false, checksum);
+		memoryPool = new ObjectFreeList<Chunk<T>>(bPlacementNew, checksum);
 
 		if(memoryPool == nullptr)
 		{
