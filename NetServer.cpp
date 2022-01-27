@@ -139,6 +139,84 @@ void NetLib::NetServer::Stop()
 	connectClient = 0;
 }
 
+bool NetLib::NetServer::Connect(WCHAR* szIp, short port, void* arg)
+{
+	int emptySessionPosition;
+	if (!emptySessionStack.Pop(&emptySessionPosition)) {
+		// 세션 꽉참
+
+		return false;
+	}
+
+	if (pSessionArr[emptySessionPosition].isUsing) {
+		// 사용중인 세션 받음 
+
+		return false;
+	}
+
+	Session* newSession = &pSessionArr[emptySessionPosition].session;
+
+	rsize_t size = sizeof(pSessionArr[emptySessionPosition].session.ipv4Addr);
+
+	memcpy_s(newSession->ipv4Addr, size, szIp, size);
+
+
+	newSession->sock = socket(AF_INET, SOCK_STREAM, 0);
+
+	tcp_keepalive tcpkl;
+	tcpkl.onoff = 1;
+	tcpkl.keepaliveinterval = 1000;
+	tcpkl.keepalivetime = 30000;
+
+	DWORD dwRet;
+	WSAIoctl(newSession->sock, SIO_KEEPALIVE_VALS, &tcpkl, sizeof(tcp_keepalive), 0, 0, &dwRet, NULL, NULL);
+
+	if (newSession->sock == INVALID_SOCKET) {
+		// socket 에러
+		int errorCode = WSAGetLastError();
+
+		return false;
+	}
+
+	newSession->sessionAddr.sin_family = AF_INET;
+	InetPton(AF_INET, szIp, &newSession->sessionAddr.sin_addr);
+	newSession->sessionAddr.sin_port = htons(port);
+
+	int result = connect(newSession->sock, (sockaddr*)&newSession->sessionAddr, sizeof(newSession->sessionAddr));
+
+	if (result != 0) {
+		// connect 에러
+		int errorCode = WSAGetLastError();
+
+		return false;
+	}
+
+	ZeroMemory(&newSession->recvOverlapped, sizeof(OVERLAPPED));
+	ZeroMemory(&newSession->sendOverlapped, sizeof(OVERLAPPED));
+
+	newSession->sendBufCount = 0;
+	newSession->sendBufSendCount = 0;
+
+	newSession->IOCount = 0;
+	newSession->isRelease = FALSE;
+	newSession->sending = FALSE;
+
+	newSession->port = port;
+	newSession->sessionID.fullSessionID = ++this->lastSessionId;
+	newSession->sessionID.structSessionID.arrPos = (WORD)emptySessionPosition;
+
+	InterlockedIncrement(&connectClient);
+
+	CreateIoCompletionPort((HANDLE)newSession->sock, this->hcp, (ULONG_PTR)newSession, 0);
+
+	this->RecvPost(newSession);
+
+	this->OnServerConnect(newSession->sessionID, arg);
+
+	return true;
+}
+
+
 unsigned int WINAPI NetLib::NetServer::AcceptThread(void * arg)
 {
 	SOCKET clientSock;

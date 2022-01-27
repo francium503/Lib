@@ -101,6 +101,8 @@ namespace NetLib {
 			return connectClient;
 		}
 
+		bool Connect(WCHAR *szIp, short port, void *arg);
+
 		bool Disconnect(SESSIONID SessionID);
 		bool SendPacket(SESSIONID SessionID, PacketBuffer* packet);
 
